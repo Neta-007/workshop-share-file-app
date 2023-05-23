@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:model="clr-namespace:FileShareConnectivity.Models;assembly=FileShareConnectivity"
+             xmlns:viewmodel="clr-namespace:FileSharingApp.ViewModel"
+             x:DataType="viewmodel:ShareFileViewModel"
+             x:Class="FileSharingApp.View.ShareFilePage"
+             x:Name="ConnectionsEstablishPage"
+             Title="Send A File">
+
+    <Grid
+        ColumnDefinitions="*"
+        ColumnSpacing="5"
+        RowDefinitions="Auto,*,Auto"
+        RowSpacing="0">
+
+        <VerticalStackLayout Grid.Row="0">
+            <Label IsVisible="{Binding IsScaningProcessViewShouldBeActive}"
+                    Text="Scanning for devices..."
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Padding="10"
+                    FontSize="14"/>
+            <ActivityIndicator IsVisible="{Binding IsScaningProcessViewShouldBeActive}"
+                                IsRunning="{Binding IsScaningProcessViewShouldBeActive}"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center"
+                                Grid.RowSpan="2"
+                                Grid.ColumnSpan="2"/>
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1">
+            <CollectionView ItemsSource="{Binding NearbyDevices}">
+
+                <CollectionView.EmptyView>
+                    <ContentView HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+                        <Label Text="No items to display"
+                                    FontAttributes="Bold"
+                                    FontSize="18"
+                                    HorizontalOptions="Center"
+                                    VerticalOptions="Center" />
+                    </ContentView>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="4"/>
+                </CollectionView.ItemsLayout>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="model:NearbyDevice">
+
+                        <Frame Margin="5" Padding="5" BorderColor="Gray">
+
+                            <VerticalStackLayout Padding="2" Spacing="5">
+                                <Image Source="generic_avatar_icon.png"/>
+                                <Label Text="{Binding Name, FallbackValue='(unknown)', TargetNullValue='(unknown)'}"
+                                        HorizontalOptions="Center"
+                                        FontAttributes="Bold"/>
+                            </VerticalStackLayout>
+
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer NumberOfTapsRequired="1"
+                                                        CommandParameter="{Binding .}"
+                                                        Command="{Binding BindingContext.DeviceFrameClickedCommand, Source={x:Reference ConnectionsEstablishPage}}" />
+                            </Frame.GestureRecognizers>
+
+                        </Frame>
+
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+        </ScrollView>
+
+        <Button Command="{Binding FindDevicesCommand}"
+                IsEnabled="{Binding IsNotScanningForDevices}"
+                Text="Show Devices"
+                FontAttributes="Bold"
+                Grid.Row="2"
+                Margin="8"/>
+        
+    </Grid>
+
+    
+</ContentPage>
