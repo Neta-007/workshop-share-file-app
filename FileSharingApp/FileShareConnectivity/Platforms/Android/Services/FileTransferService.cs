@@ -1,7 +1,11 @@
 using System.IO;
 using System.Net.Sockets;
+using Android.Content.Res;
 using Android.Net.Wifi.P2p;
+using Android.Views;
+using Android.Widget;
 using FileShareConnectivity.Interfaces;
+using View = Microsoft.Maui.Controls.View;
 
 namespace FileShareConnectivity.Platforms;
 
@@ -19,33 +23,7 @@ internal class FileTransferService : IFileTransferService
             {
                 if(info.GroupFormed && info.IsGroupOwner)
                 {
-                    byte[] data = ;
-
-                    try
-                    {
-                        using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
-                        {
-                            await socket.ConnectAsync(_device.DeviceAddress, 8888);
-
-                            using (var fileStream = File.OpenRead(filePath))
-                            {
-                                byte[] buffer = new byte[BufferSize];
-                                int bytesRead;
-
-                                while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                                {
-                                    await socket.SendAsync(buffer, bytesRead, SocketFlags.None);
-                                }
-                            }
-
-                            return true;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error sending file: {ex.Message}");
-                        return false;
-                    }
+                    
                 }
             }
         }
