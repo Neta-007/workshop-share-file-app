@@ -7,6 +7,7 @@ internal class NetworkService : INetworkService
 {
     public event EventHandler<DevicesEventArgs> DevicesFound;
     public event EventHandler<EventArgs> FinishScan;
+    public event EventHandler<ConnectionResultEventArgs> ConnectionCompleted;
 
     public void StartDiscoverNearbyDevices()
     {
@@ -18,7 +19,7 @@ internal class NetworkService : INetworkService
         throw new NotImplementedException();
     }
 
-    public bool EstablishConnection(Models.NearbyDevice device)
+    public void EstablishConnection(Models.NearbyDevice device)
     {
         throw new NotImplementedException();
     }

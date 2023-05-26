@@ -2,6 +2,7 @@
 using Android.Net;
 using Android.Net.Wifi.P2p;
 using Android.OS;
+using FileShareConnectivity.EventArguments;
 using static Android.Net.Wifi.P2p.WifiP2pManager;
 
 namespace FileShareConnectivity.Platforms.Android.WifiDirect;
@@ -19,6 +20,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
 
     public event EventHandler<IEnumerable<WifiP2pDevice>> DevicesDiscovered;
     public event EventHandler<EventArgs> FinishDiscovery;
+    public event EventHandler<ConnectionResultEventArgs> ConnectionResult;
 
     public WifiDirectBroadcastReceiver(WifiP2pManager manager, WifiP2pManager.Channel channel, Context context)
     {
@@ -93,12 +95,22 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         
         if (isNetworkConntected)
         {
-            _manager.RequestConnectionInfo(_channel, new WifiDirectConnectionInfoListener());
+            // we are connected with the other device, request connection
+            // info to find group owner IP
+            WifiDirectConnectionInfoListener wifiDirectConnectionInfoListener = new WifiDirectConnectionInfoListener();
+            wifiDirectConnectionInfoListener.ConnectionResult += WifiDirectConnectionInfoListener_ConnectionResult; ;
+            _manager.RequestConnectionInfo(_channel, wifiDirectConnectionInfoListener);
         }
         else
         {
             // TODO: disconnected
+            OnConnectionResult(new ConnectionResultEventArgs(false, null));
         }
+    }
+
+    private void WifiDirectConnectionInfoListener_ConnectionResult(object sender, ConnectionResultEventArgs e)
+    {
+        OnConnectionResult(e);
     }
 
     private void handleWifiP2pThisDeviceChangedAction(global::Android.Content.Intent intent)
@@ -137,6 +149,14 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         if (FinishDiscovery != null)
         {
             FinishDiscovery(this, new EventArgs());
+        }
+    }
+
+    protected virtual void OnConnectionResult(ConnectionResultEventArgs e)
+    {
+        if (ConnectionResult != null)
+        {
+            ConnectionResult(this, e);
         }
     }
 }

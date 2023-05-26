@@ -1,11 +1,12 @@
 ﻿using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
-using Android.Content;
-using FileSharingApp.View;
-using Android.Widget;
-using FileShareConnectivity;
+using AndroidX.Lifecycle;
 using FileShareConnectivity.Platforms.Android;
+using FileSharingApp.View;
+using FileSharingApp.ViewModel;
+//using static Microsoft.Maui.ApplicationModel.Platform;
 
 namespace FileSharingApp;
 
@@ -18,29 +19,28 @@ namespace FileSharingApp;
 [IntentFilter(new[] { Intent.ActionSend }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "*/*")]
 class ShareActivity : BaseShareActivity
 {
-    private FileSharingWrapper _fileSharingWrapper;
-
     protected override void OnCreate(Bundle savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
 
-        Microsoft.Maui.Controls.Shell.Current.GoToAsync($"{nameof(ShareFilePage)}");
-
-        /*if (_fileSharingWrapper == null)
+        if (Intent.Action == Intent.ActionSend && Intent.Type != null)
         {
-            _fileSharingWrapper = (FileSharingWrapper)MauiApplication.Current.Services.GetService(typeof(FileSharingWrapper));
-        }*/
-
-        /*if (!isWifiDirectSupportedAndEnabled())
-        {
-            // Wifi Direct is not supported on this device or is not enabled on the device => so don't create _networkProxy object
+            var clipData = Intent.ClipData;
+            if (clipData != null)
+            {
+                var uri = clipData.GetItemAt(0).Uri;
+                // Handle the shared URI here
+                if (uri != null)
+                {
+                    var viewModel = MauiApplication.Current.Services.GetRequiredService<ShareFileViewModel>();
+                    viewModel.FilePath = uri.ToString();
+                    Microsoft.Maui.Controls.Shell.Current.GoToAsync($"{nameof(ShareFilePage)}");
+                }
+            }
         }
         else
-        {
-            if (_networkProxy == null)
-            {
-                _networkProxy = new NetworkProxy(this);
-            } 
-        }*/
+        { 
+        }
+
     }
 }

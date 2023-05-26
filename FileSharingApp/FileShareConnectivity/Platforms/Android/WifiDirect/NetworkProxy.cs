@@ -29,6 +29,12 @@ internal class NetworkProxy : INetworkService, IDisposable
         remove { _networkService.FinishScan -= value; }
     }
 
+    public event EventHandler<ConnectionResultEventArgs> ConnectionCompleted
+    {
+        add { _networkService.ConnectionCompleted += value; }
+        remove { _networkService.ConnectionCompleted -= value; }
+    }
+
     public void RegisterReceiver()
     {
         _networkService.RegisterReceiver();
@@ -51,10 +57,10 @@ internal class NetworkProxy : INetworkService, IDisposable
         return _networkService.DiscoverNearbyDevices();
     }
 
-    public bool EstablishConnection(NearbyDevice device)
+    public void EstablishConnection(NearbyDevice device)
     {
         validateThatWifiP2PEnabled();
-        return _networkService.EstablishConnection(device);
+        _networkService.EstablishConnection(device);
     }
 
     public bool DisconnectFromDevice(NearbyDevice device)

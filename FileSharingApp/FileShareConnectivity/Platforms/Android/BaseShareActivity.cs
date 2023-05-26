@@ -25,6 +25,7 @@ public class BaseShareActivity : MauiAppCompatActivity
             _networkProxy = new NetworkProxy(this);
             FileSharingWrapper fileSharingWrapper = (FileSharingWrapper)MauiApplication.Current.Services.GetService(typeof(FileSharingWrapper));
             fileSharingWrapper.NetworkService = _networkProxy;
+            //fileSharingWrapper.FileTransferService = _networkProxy;
         }
     }
 

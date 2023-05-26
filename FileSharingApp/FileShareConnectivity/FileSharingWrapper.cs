@@ -9,6 +9,7 @@ public class FileSharingWrapper
 {
     //private IServiceProvider _serviceProvider;
     public INetworkService NetworkService { get; internal set; }
+    public IFileTransferService FileTransferService { get; internal set; }
 
     public FileSharingWrapper()//(IServiceProvider serviceProvider)
     {

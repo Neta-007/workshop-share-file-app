@@ -26,6 +26,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
     public event EventHandler<DevicesEventArgs> DevicesFound;
     public event EventHandler<EventArgs> FinishScan;
+    public event EventHandler<ConnectionResultEventArgs> ConnectionCompleted;
 
     public NetworkService()
     {
@@ -62,6 +63,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         _receiver = new WifiDirectBroadcastReceiver(_wifiP2pManager, _channel, _context);
         _receiver.DevicesDiscovered += receiver_DevicesDiscovered;
         _receiver.FinishDiscovery += receiver_FinishDiscovery;
+        _receiver.ConnectionResult += receiver_ConnectionResult;
 
         _intentFilter = new IntentFilter();
         _intentFilter.AddAction(WifiP2pManager.WifiP2pStateChangedAction);
@@ -90,7 +92,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         throw new NotImplementedException();
     }
 
-    public bool EstablishConnection(Models.NearbyDevice device)
+    public void EstablishConnection(Models.NearbyDevice device)
     {
         WifiP2pDevice foundDevice = _peerList.FirstOrDefault(d => d.DeviceAddress == device.Address);
 
@@ -106,7 +108,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
             };
             
             _wifiP2pManager.Connect(_channel, config, new WifiDirectActionListener(
-                () => showToastMessage("Starting establishing connection"),
+                () => showToastMessage("Start establishing connection"),
                 e => showToastMessage($"Failed to start connection. Reason: {e}")));
         }
         else
@@ -114,7 +116,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
             //TODO 
         }
 
-        return true; //TODO: change to enum (maybe) that represents the establishment of the connection status
+        //return true; //TODO: change to enum (maybe) that represents the establishment of the connection status
     }
 
     public bool DisconnectFromDevice(Models.NearbyDevice device)
@@ -184,6 +186,11 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         }
     }
 
+    private void receiver_ConnectionResult(object sender, ConnectionResultEventArgs e)
+    {
+        OnConnectionCompleted(e);
+    }
+
     public void RegisterReceiver()
     {
         if (_receiver != null && !_isReceiverRegistered)
@@ -216,6 +223,14 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         if (FinishScan != null)
         {
             FinishScan(this, e);
+        }
+    }
+
+    protected virtual void OnConnectionCompleted(ConnectionResultEventArgs e)
+    {
+        if (ConnectionCompleted != null)
+        {
+            ConnectionCompleted(this, e);
         }
     }
 }

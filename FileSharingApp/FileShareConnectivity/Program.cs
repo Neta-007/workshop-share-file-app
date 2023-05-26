@@ -15,9 +15,8 @@ public static class Program
 
     private static void registerServices(in IServiceCollection services)
     {
-        // TODO: Make more sence to register as AddTransient instead of AddSingleton because the context will be specific
         services.AddTransient<INetworkService, NetworkService>();
-        //services.AddSingleton<IFileTransferService, FileTransferService>();
+        services.AddSingleton<IFileTransferService, FileTransferService>();
     }
 
     private static void registerEssentials(in IServiceCollection services)

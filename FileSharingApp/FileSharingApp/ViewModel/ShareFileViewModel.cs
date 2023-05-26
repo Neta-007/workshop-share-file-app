@@ -13,6 +13,7 @@ public partial class ShareFileViewModel : ObservableObject
 {
     private FileSharingWrapper _fileSharingWrapper;
     private IPermissionsService _permissionsService;
+    public string FilePath { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsScaningProcessViewShouldBeDeactive))]
@@ -35,6 +36,7 @@ public partial class ShareFileViewModel : ObservableObject
         _fileSharingWrapper = fileSharingWrapper;
         _fileSharingWrapper.NetworkService.FinishScan += NetworkService_FinishScan;
         _fileSharingWrapper.NetworkService.DevicesFound += NetworkService_DevicesFound;
+        _fileSharingWrapper.NetworkService.ConnectionCompleted += NetworkService_ConnectionCompleted;
     }
 
     [RelayCommand]
@@ -52,8 +54,8 @@ public partial class ShareFileViewModel : ObservableObject
             // the visual element does not reset !!!
             // hence the button for scaning devices will not disabled.
             // https://stackoverflow.com/questions/73738176/button-greyed-when-using-net-maui-community-toolkit-mvvm
-            var t = Task.Run(requestPermissionAsync);
-            t.Wait();
+            var requestPermissionTask = Task.Run(requestPermissionAsync);
+            requestPermissionTask.Wait();
 
             if (!IsScanningForDevices)
             {
@@ -96,6 +98,22 @@ public partial class ShareFileViewModel : ObservableObject
         IsScanningForDevices = false;
         IsScaningProcessViewShouldBeActive = false;
     }
+
+    private void NetworkService_ConnectionCompleted(object sender, ConnectionResultEventArgs e)
+    {
+        if(e.IsSuccessConnection && e.ConnectionInfo != null)
+        {
+            if (FilePath != null)
+            {
+                _fileSharingWrapper.FileTransferService.SendFileAsync(e.ConnectionInfo, FilePath);
+            }
+            else
+            {
+                // from file picker?
+            }
+        }
+    }
+
 
     private async Task requestPermissionAsync()
     {
