@@ -6,7 +6,7 @@ using FileShareConnectivity.Models;
 
 namespace FileShareConnectivity.Platforms.Android.WifiDirect;
 
-internal class NetworkProxy : INetworkService, IDisposable
+internal class NetworkProxy : INetworkService
 {
     private NetworkService _networkService;
 
@@ -23,16 +23,16 @@ internal class NetworkProxy : INetworkService, IDisposable
         remove { _networkService.DevicesFound -= value; }
     }
 
-    public event EventHandler<EventArgs> FinishScan
+    public event EventHandler<ScanStateEventArgs> ScanStateChanged
     {
-        add { _networkService.FinishScan += value; }
-        remove { _networkService.FinishScan -= value; }
+        add { _networkService.ScanStateChanged += value; }
+        remove { _networkService.ScanStateChanged -= value; }
     }
 
-    public event EventHandler<ConnectionResultEventArgs> ConnectionCompleted
+    public event EventHandler<ConnectionResultEventArgs> ConnectionResult
     {
-        add { _networkService.ConnectionCompleted += value; }
-        remove { _networkService.ConnectionCompleted -= value; }
+        add { _networkService.ConnectionResult += value; }
+        remove { _networkService.ConnectionResult -= value; }
     }
 
     public void RegisterReceiver()
@@ -81,11 +81,10 @@ internal class NetworkProxy : INetworkService, IDisposable
         }
     }
 
-    public void Dispose()
+    public void CleanAnyConnections()
     {
         _networkService.UnregisterReceiver();
         _networkService.StopDiscoverNearbyDevices();
         _networkService.Disconnect();
-        _networkService.Dispose();
     }
 }

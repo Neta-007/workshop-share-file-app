@@ -13,10 +13,10 @@ public partial class ShareFileViewModel : ObservableObject
 {
     private FileSharingWrapper _fileSharingWrapper;
     private IPermissionsService _permissionsService;
+
     public string FilePath { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsScaningProcessViewShouldBeDeactive))]
     private bool isScaningProcessViewShouldBeActive;    // TODO: check if we need it
 
     [ObservableProperty]
@@ -28,21 +28,26 @@ public partial class ShareFileViewModel : ObservableObject
 
     public bool IsNotScanningForDevices => !IsScanningForDevices;
 
-    public bool IsScaningProcessViewShouldBeDeactive => !IsScaningProcessViewShouldBeActive;    // TODO: check if we need it
-
     public ShareFileViewModel(FileSharingWrapper fileSharingWrapper, IPermissionsService permissionsService)
     {
         _permissionsService = permissionsService;
         _fileSharingWrapper = fileSharingWrapper;
-        _fileSharingWrapper.NetworkService.FinishScan += NetworkService_FinishScan;
+        _fileSharingWrapper.NetworkService.ScanStateChanged += NetworkService_ScanStateChanged;
         _fileSharingWrapper.NetworkService.DevicesFound += NetworkService_DevicesFound;
-        _fileSharingWrapper.NetworkService.ConnectionCompleted += NetworkService_ConnectionCompleted;
+        _fileSharingWrapper.NetworkService.ConnectionResult += NetworkService_ConnectionResult;
     }
 
     [RelayCommand]
     void DeviceFrameClicked(NearbyDevice deviceObject)
     {
-        _fileSharingWrapper.NetworkService.EstablishConnection(deviceObject);
+        try
+        {
+            _fileSharingWrapper.NetworkService.EstablishConnection(deviceObject);
+        }
+        catch(MyException ex)
+        {
+            App.AlertService.ShowAlert(ex.Title, ex.Message);
+        }
     }
 
     [RelayCommand]
@@ -50,32 +55,22 @@ public partial class ShareFileViewModel : ObservableObject
     {
         try
         {
-            // If we are not wrapping the call in a Task.Run block to execute it on a background thread
-            // the visual element does not reset !!!
-            // hence the button for scaning devices will not disabled.
-            // https://stackoverflow.com/questions/73738176/button-greyed-when-using-net-maui-community-toolkit-mvvm
-            var requestPermissionTask = Task.Run(requestPermissionAsync);
-            requestPermissionTask.Wait();
-
+            requestPermission();
             if (!IsScanningForDevices)
             {
-                NearbyDevices.Clear();
-                IsScaningProcessViewShouldBeActive = true;
-                IsScanningForDevices = true;
                 _fileSharingWrapper.NetworkService.StartDiscoverNearbyDevices();
             }
         }
         catch (MyException ex)
         {
+            resetView();
             App.AlertService.ShowAlert(ex.Title, ex.Message);
-            NetworkService_FinishScan(null, null);      // TODO: chagne the null ?
         } 
     }
 
     private void NetworkService_DevicesFound(object sender, DevicesEventArgs e)
     {
         NearbyDevices.Clear();
-
         if (e.DeviceList?.Any() == true)        // The collection is not null and contains at least one item
         {
             foreach (NearbyDevice device in e.DeviceList)
@@ -85,25 +80,51 @@ public partial class ShareFileViewModel : ObservableObject
         }
         else
         {
-            // what??
-            //string msgTitle = 
-            //App.AlertService.ShowAlert("No device found", ex.Message);    // change to toast msg
+            App.AlertService.ShowAlert("", "No device found");    // change to toast msg?
         }
     }
 
-    /*
-     * A cleanup method after the scan has finished, whether the scan succeeded or failed due to an exception
-     */
-    private void NetworkService_FinishScan(object sender, EventArgs e)
+    private void refreshScanIndicators(bool isScanStarted)
     {
-        IsScanningForDevices = false;
-        IsScaningProcessViewShouldBeActive = false;
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            IsScanningForDevices = isScanStarted;
+            IsScaningProcessViewShouldBeActive = isScanStarted;
+        });
     }
 
-    private void NetworkService_ConnectionCompleted(object sender, ConnectionResultEventArgs e)
+    private void resetView()
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            NearbyDevices.Clear();
+            refreshScanIndicators(false);
+        });
+    }
+
+    private void NetworkService_ScanStateChanged(object sender, ScanStateEventArgs e)
+    {
+        switch(e.eScanState)
+        {
+            case FileShareConnectivity.enums.ScanState.Reset:
+            case FileShareConnectivity.enums.ScanState.Failed:
+                resetView();
+                break;
+            case FileShareConnectivity.enums.ScanState.Started:
+                refreshScanIndicators(true);
+                break;
+            case FileShareConnectivity.enums.ScanState.Stopped:
+                refreshScanIndicators(false);
+                break;
+        }
+    }
+
+    private void NetworkService_ConnectionResult(object sender, ConnectionResultEventArgs e)
     {
         if(e.IsSuccessConnection && e.ConnectionInfo != null)
         {
+            // mark the device frame with green color?...
+
             if (FilePath != null)
             {
                 _fileSharingWrapper.FileTransferService.SendFileAsync(e.ConnectionInfo, FilePath);
@@ -115,8 +136,7 @@ public partial class ShareFileViewModel : ObservableObject
         }
     }
 
-
-    private async Task requestPermissionAsync()
+    private async void requestPermission()
     {
         PermissionStatus permissionStatus = await _permissionsService.CheckPermissionsAsync();
 

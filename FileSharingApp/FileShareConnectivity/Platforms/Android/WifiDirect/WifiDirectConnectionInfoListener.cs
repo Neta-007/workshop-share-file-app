@@ -1,5 +1,9 @@
 using Android.Net.Wifi.P2p;
+using Android.Util;
 using FileShareConnectivity.EventArguments;
+using FileShareConnectivity.Platforms.Android.io;
+using Java.Net;
+using static Android.Icu.Text.IDNA;
 
 namespace FileShareConnectivity.Platforms.Android.WifiDirect;
 
@@ -9,27 +13,47 @@ public class WifiDirectConnectionInfoListener : Java.Lang.Object, WifiP2pManager
 
     public void OnConnectionInfoAvailable(WifiP2pInfo info)
     {
-        //TODO:in case we are going to do groups implement this
-        var groupOwnerAddress = info.GroupOwnerAddress?.HostAddress;    // We will use it in the client side when we send 
-
-        if (info.GroupFormed && info.IsGroupOwner) {                    // This is the host
-            // Do whatever tasks are specific to the group owner.
-            // One common case is creating a group owner thread and accepting
-            // incoming connections.
-        } else if (info.GroupFormed) {                                  // this is the client
-            // The other device acts as the peer (client). In this case,
-            // you'll want to create a peer thread that connects
-            // to the group owner.
+        if (info.GroupFormed && info.IsGroupOwner) 
+        {
+            // Device is the group owner (server side)
+            // Start a server socket and listen for incoming connections
+            StartServerSocket();
+        } 
+        else if (info.GroupFormed) 
+        {
+            // Device is the client side
+            // Connect to the group owner's IP address
+            ConnectToServerSocket(info.GroupOwnerAddress);
         }
 
-        OnConnectionResult(info);
+        OnConnectionResult(new ConnectionResultEventArgs(info.GroupFormed, info));
     }
 
-    protected virtual void OnConnectionResult(WifiP2pInfo info)
+    public void StartServerSocket()
+    {
+        // Create a ServerSocket and listen on a specific port (SocketConfiguration.SocketPort)
+        Task.Run(() =>
+        {
+            ServerSocketFile serverSocket = new ServerSocketFile();
+            serverSocket.Start();
+        });
+    }
+
+    public void ConnectToServerSocket(InetAddress serverAddress)
+    {
+        // If the device is a client
+        Task.Run(() =>
+        {
+            ClientSocketFile clientSocket = new ClientSocketFile(serverAddress.HostAddress);
+            clientSocket.Connect();
+        });
+    }
+
+    protected virtual void OnConnectionResult(ConnectionResultEventArgs e)
     {
         if (ConnectionResult != null)
         {
-            ConnectionResult(this, new ConnectionResultEventArgs(true, info));
+            ConnectionResult(this, e);
         }
     }
 }

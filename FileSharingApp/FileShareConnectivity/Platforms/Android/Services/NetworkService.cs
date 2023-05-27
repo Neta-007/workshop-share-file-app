@@ -1,12 +1,11 @@
-﻿using System.Linq;
-using Android.App;
-using Android.Content;
+﻿using Android.Content;
 using Android.Net.Wifi;
 using Android.Net.Wifi.P2p;
 using Android.Widget;
+using FileShareConnectivity.enums;
 using FileShareConnectivity.EventArguments;
+using FileShareConnectivity.Exceptions;
 using FileShareConnectivity.Interfaces;
-using FileShareConnectivity.Platforms.Android.enums;
 using FileShareConnectivity.Platforms.Android.WifiDirect;
 
 namespace FileShareConnectivity.Platforms;
@@ -25,8 +24,8 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     private ScanState _scanState = ScanState.None;
 
     public event EventHandler<DevicesEventArgs> DevicesFound;
-    public event EventHandler<EventArgs> FinishScan;
-    public event EventHandler<ConnectionResultEventArgs> ConnectionCompleted;
+    public event EventHandler<ScanStateEventArgs> ScanStateChanged;
+    public event EventHandler<ConnectionResultEventArgs> ConnectionResult;
 
     public NetworkService()
     {
@@ -62,7 +61,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         // Also, register to DevicesDiscovered event
         _receiver = new WifiDirectBroadcastReceiver(_wifiP2pManager, _channel, _context);
         _receiver.DevicesDiscovered += receiver_DevicesDiscovered;
-        _receiver.FinishDiscovery += receiver_FinishDiscovery;
+        _receiver.DiscoveryChanged += receiver_DiscoveryChanged;
         _receiver.ConnectionResult += receiver_ConnectionResult;
 
         _intentFilter = new IntentFilter();
@@ -78,13 +77,17 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         _wifiP2pManager.DiscoverPeers(_channel, new WifiDirectActionListener(
             () => scanOperationCompleted(ScanState.Started, "Discovery started successfully."),
             (e) => scanOperationCompleted(ScanState.Failed, $"Failed to start discovery. Reason: {e}")));      // When it will find Peers => it will raise the intent in the _reciver
+        
+        OnScanStateChanged(new ScanStateEventArgs(_scanState));
     }
 
     public void StopDiscoverNearbyDevices()
     {
         _wifiP2pManager.StopPeerDiscovery(_channel, new WifiDirectActionListener(
-            () => scanOperationCompleted(ScanState.Stopped, "Discovery stopped successfully."),
-            (e) => scanOperationCompleted(ScanState.Failed, $"Failed to stop discovery. Reason: {e}")));
+            () => _scanState = ScanState.Stopped,
+            (e) => _scanState = ScanState.Failed));
+
+        OnScanStateChanged(new ScanStateEventArgs(_scanState));
     }
 
     public IEnumerable<Models.NearbyDevice> DiscoverNearbyDevices()
@@ -98,32 +101,24 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
         if (foundDevice != null)
         {
-            WifiP2pConfig config = new WifiP2pConfig
-            {
-                DeviceAddress = foundDevice.DeviceAddress,
-                Wps =
-                {
-                    Setup = WpsInfo.Pbc
-                }
-            };
-            
+            WifiP2pConfig config = new WifiP2pConfig();
+            config.DeviceAddress = foundDevice.DeviceAddress;
+            config.Wps.Setup = WpsInfo.Pbc;
+            config.GroupOwnerIntent = 0;
+
             _wifiP2pManager.Connect(_channel, config, new WifiDirectActionListener(
                 () => showToastMessage("Start establishing connection"),
                 e => showToastMessage($"Failed to start connection. Reason: {e}")));
         }
         else
         {
-            //TODO 
+            throw new MyException("Fail to find the selected device", "Refresh discovery");
         }
-
-        //return true; //TODO: change to enum (maybe) that represents the establishment of the connection status
     }
 
     public void Disconnect()
     {
-        _wifiP2pManager.RemoveGroup(_channel, new WifiDirectActionListener(
-                () => showToastMessage("Disconnect"),
-                e => showToastMessage($"Failed to disconnect. Reason: {e}")));
+        _wifiP2pManager.RemoveGroup(_channel, new WifiDirectActionListener(() => { }, e => { }));
     }
 
     void WifiP2pManager.IChannelListener.OnChannelDisconnected()
@@ -168,26 +163,21 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
             _nearbyDevicesName.AddLast(new Models.NearbyDevice(device.DeviceName, device.DeviceAddress));
         }
 
-        if (_peerList.Count == 0)
-        {
-            showToastMessage("No devices found");
-        }
-
-        OnDeviceFound(new DevicesEventArgs(_nearbyDevicesName));
+        OnDevicesFound(new DevicesEventArgs(_nearbyDevicesName));
     }
 
-    private void receiver_FinishDiscovery(object sender, EventArgs e)
+    private void receiver_DiscoveryChanged(object sender, ScanStateEventArgs e)
     {
         if(_scanState != ScanState.None)       // TODO: when the app init the WifiP2pManager.WifiP2pDiscoveryChangedAction intent is triggered...
         {
-            _scanState = _scanState == ScanState.Started ? ScanState.Stopped : _scanState;
-            OnFinishScan(e);
+            _scanState = e.eScanState;//_scanState == ScanState.Started ? ScanState.Stopped : _scanState;
+            OnScanStateChanged(new ScanStateEventArgs(_scanState));
         }
     }
 
     private void receiver_ConnectionResult(object sender, ConnectionResultEventArgs e)
     {
-        OnConnectionCompleted(e);
+        OnConnectionResult(e);
     }
 
     public void RegisterReceiver()
@@ -208,7 +198,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         }
     }
 
-    protected virtual void OnDeviceFound(DevicesEventArgs e)
+    protected virtual void OnDevicesFound(DevicesEventArgs e)
     {
         if (DevicesFound != null)
         {
@@ -216,19 +206,19 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         }
     }
 
-    protected virtual void OnFinishScan(EventArgs e)
+    protected virtual void OnScanStateChanged(ScanStateEventArgs e)
     {
-        if (FinishScan != null)
+        if (ScanStateChanged != null)
         {
-            FinishScan(this, e);
+            ScanStateChanged(this, e);
         }
     }
 
-    protected virtual void OnConnectionCompleted(ConnectionResultEventArgs e)
+    protected virtual void OnConnectionResult(ConnectionResultEventArgs e)
     {
-        if (ConnectionCompleted != null)
+        if (ConnectionResult != null)
         {
-            ConnectionCompleted(this, e);
+            ConnectionResult(this, e);
         }
     }
 }

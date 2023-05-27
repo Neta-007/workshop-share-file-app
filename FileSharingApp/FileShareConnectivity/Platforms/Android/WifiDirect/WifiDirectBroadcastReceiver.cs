@@ -1,7 +1,7 @@
 ﻿using Android.Content;
 using Android.Net;
 using Android.Net.Wifi.P2p;
-using Android.OS;
+using FileShareConnectivity.enums;
 using FileShareConnectivity.EventArguments;
 
 namespace FileShareConnectivity.Platforms.Android.WifiDirect;
@@ -18,8 +18,11 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
     private readonly WifiDirectPeerListListener _peerListListener; 
 
     public event EventHandler<IEnumerable<WifiP2pDevice>> DevicesDiscovered;
-    public event EventHandler<EventArgs> FinishDiscovery;
     public event EventHandler<ConnectionResultEventArgs> ConnectionResult;
+
+    public event EventHandler<EventArgs> StateChanged;
+    public event EventHandler<EventArgs> ThisDeviceChanged;
+    public event EventHandler<ScanStateEventArgs> DiscoveryChanged;
 
     public WifiDirectBroadcastReceiver(WifiP2pManager manager, WifiP2pManager.Channel channel, Context context)
     {
@@ -56,6 +59,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
 
     private void handleWifiP2pStateChangedAction(global::Android.Content.Intent intent)
     {
+        OnStateChanged(new EventArgs());
     }
 
     private void handleWifiP2pPeersChangedAction()
@@ -70,13 +74,12 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
 
         // Request a list of available peers from the WifiP2pManager and raise the DevicesDiscovered event with the results.
         _manager.RequestPeers(_channel, _peerListListener);
-        // OnWifiP2pPeersChanged(new EventArgs());
     }
 
     private void handleWifiP2pConnectionChangedAction(global::Android.Content.Intent intent)
     {
         bool isNetworkConntected = isP2PNetworkConntectedToDevice();
-        
+
         if (isNetworkConntected)
         {
             // we are connected with the other device, request connection info to find group owner IP
@@ -86,27 +89,31 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         }
         else
         {
-            // TODO: disconnected ??
+            // TODO: disconnected ?? => Can't connet?
             OnConnectionResult(new ConnectionResultEventArgs(false, null));
         }
     }
 
     private void handleWifiP2pThisDeviceChangedAction(global::Android.Content.Intent intent)
     {
+        OnThisDeviceChanged(new EventArgs());
     }
 
-    // Note that discovery will be stopped during a connection setup. If the application tries to re-initiate discovery during this time, it can fail.
     private void handleWifiP2pDiscoveryChangedAction(global::Android.Content.Intent intent)
     {
+        // Note that discovery will be stopped during a connection setup.
+        // If the application tries to re-initiate discovery during this time, it can fail.
         // Broadcast intent action indicating that peer discovery has either started or stopped.
         // https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager#WIFI_P2P_DISCOVERY_CHANGED_ACTION
         int discoveryState = intent.GetIntExtra(WifiP2pManager.ExtraDiscoveryState, -1);
+        ScanState newState = ScanState.Started;
 
         if (discoveryState == (int)WifiP2pManager.WifiP2pDiscoveryStopped)
         {
-            // p2p discovery has stopped
-            OnFinishDiscovery();    // ???
+            newState = ScanState.Stopped;
         }
+
+        OnDiscoveryChanged(new ScanStateEventArgs(newState));
     }
 
     private bool isP2PNetworkConntectedToDevice()
@@ -120,7 +127,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
             Network network = connectivityManager.ActiveNetwork;
             NetworkCapabilities activeNetwork = connectivityManager.GetNetworkCapabilities(network);
             isNetworkConntected = activeNetwork != null &&
-                                  activeNetwork.HasCapability(global::Android.Net.NetCapability.WifiP2p);
+                                  activeNetwork.HasCapability(global::Android.Net.NetCapability.Internet);
         }
         else
         {
@@ -149,19 +156,35 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         }
     }
 
-    protected virtual void OnFinishDiscovery()
-    {
-        if (FinishDiscovery != null)
-        {
-            FinishDiscovery(this, new EventArgs());
-        }
-    }
-
     protected virtual void OnConnectionResult(ConnectionResultEventArgs e)
     {
         if (ConnectionResult != null)
         {
             ConnectionResult(this, e);
+        }
+    }
+
+    protected virtual void OnStateChanged(EventArgs e)
+    {
+        if (StateChanged != null)
+        {
+            StateChanged(this, e);
+        }
+    }
+
+    protected virtual void OnThisDeviceChanged(EventArgs e)
+    {
+        if (ThisDeviceChanged != null)
+        {
+            ThisDeviceChanged(this, e);
+        }
+    }
+
+    protected virtual void OnDiscoveryChanged(ScanStateEventArgs e)
+    {
+        if (DiscoveryChanged != null)
+        {
+            DiscoveryChanged(this, e);
         }
     }
 }

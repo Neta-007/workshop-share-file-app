@@ -6,8 +6,8 @@ namespace FileShareConnectivity.Interfaces;
 public interface INetworkService
 {
     public event EventHandler<DevicesEventArgs> DevicesFound;
-    public event EventHandler<EventArgs> FinishScan;
-    public event EventHandler<ConnectionResultEventArgs> ConnectionCompleted;
+    public event EventHandler<ScanStateEventArgs> ScanStateChanged;
+    public event EventHandler<ConnectionResultEventArgs> ConnectionResult;
 
     void StartDiscoverNearbyDevices();
     IEnumerable<Models.NearbyDevice> DiscoverNearbyDevices();

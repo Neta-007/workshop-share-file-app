@@ -7,13 +7,10 @@ namespace FileShareConnectivity;
  */
 public class FileSharingWrapper
 {
-    //private IServiceProvider _serviceProvider;
     public INetworkService NetworkService { get; internal set; }
     public IFileTransferService FileTransferService { get; internal set; }
 
-    public FileSharingWrapper()//(IServiceProvider serviceProvider)
+    public FileSharingWrapper()
     {
-        //_serviceProvider = serviceProvider;
-        //NetworkService = (INetworkService)_serviceProvider.GetService(typeof(INetworkService));
     }
 }
