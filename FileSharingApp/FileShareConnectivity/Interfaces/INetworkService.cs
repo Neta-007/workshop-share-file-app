@@ -12,5 +12,5 @@ public interface INetworkService
     void StartDiscoverNearbyDevices();
     IEnumerable<Models.NearbyDevice> DiscoverNearbyDevices();
     void EstablishConnection(Models.NearbyDevice device);
-    bool DisconnectFromDevice(Models.NearbyDevice device);
+    void Disconnect();
 }

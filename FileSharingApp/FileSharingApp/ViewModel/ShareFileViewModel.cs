@@ -74,9 +74,10 @@ public partial class ShareFileViewModel : ObservableObject
 
     private void NetworkService_DevicesFound(object sender, DevicesEventArgs e)
     {
+        NearbyDevices.Clear();
+
         if (e.DeviceList?.Any() == true)        // The collection is not null and contains at least one item
         {
-            // IsScaningProcessViewShouldBeActive = false;
             foreach (NearbyDevice device in e.DeviceList)
             {
                 NearbyDevices.Add(device);
@@ -86,7 +87,7 @@ public partial class ShareFileViewModel : ObservableObject
         {
             // what??
             //string msgTitle = 
-            //App.AlertService.ShowAlert("No New?", ex.Message);
+            //App.AlertService.ShowAlert("No device found", ex.Message);    // change to toast msg
         }
     }
 

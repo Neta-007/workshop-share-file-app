@@ -27,7 +27,6 @@ internal class FileTransferService : IFileTransferService
                 }
             }
         }
-    }
-
-    
+        throw new NotImplementedException();
+    }   
 }

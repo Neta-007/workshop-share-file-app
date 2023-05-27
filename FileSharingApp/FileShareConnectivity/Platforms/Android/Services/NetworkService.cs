@@ -119,9 +119,11 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         //return true; //TODO: change to enum (maybe) that represents the establishment of the connection status
     }
 
-    public bool DisconnectFromDevice(Models.NearbyDevice device)
+    public void Disconnect()
     {
-        throw new NotImplementedException();
+        _wifiP2pManager.RemoveGroup(_channel, new WifiDirectActionListener(
+                () => showToastMessage("Disconnect"),
+                e => showToastMessage($"Failed to disconnect. Reason: {e}")));
     }
 
     void WifiP2pManager.IChannelListener.OnChannelDisconnected()
@@ -158,15 +160,12 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
      */
     private void receiver_DevicesDiscovered(object sender, IEnumerable<WifiP2pDevice> deviceList)
     {
-        if (!_peerList.OrderBy(d => d.DeviceName).SequenceEqual(deviceList.OrderBy(d => d.DeviceName))) // TODO: maybe change this ?
+        _peerList.Clear();
+        _nearbyDevicesName.Clear();
+        foreach (WifiP2pDevice device in deviceList)
         {
-            _peerList.Clear();
-            _nearbyDevicesName.Clear();
-            foreach (WifiP2pDevice device in deviceList)
-            {
-                _peerList.AddLast(device);
-                _nearbyDevicesName.AddLast(new Models.NearbyDevice(device.DeviceName, device.DeviceAddress));
-            }
+            _peerList.AddLast(device);
+            _nearbyDevicesName.AddLast(new Models.NearbyDevice(device.DeviceName, device.DeviceAddress));
         }
 
         if (_peerList.Count == 0)
@@ -206,7 +205,6 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         {
             _context.UnregisterReceiver(_receiver);
             _isReceiverRegistered = false;
-            StopDiscoverNearbyDevices();        // TODO: Make sence?
         }
     }
 

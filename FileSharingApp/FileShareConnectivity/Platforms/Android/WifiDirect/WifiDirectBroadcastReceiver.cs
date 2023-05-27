@@ -3,7 +3,6 @@ using Android.Net;
 using Android.Net.Wifi.P2p;
 using Android.OS;
 using FileShareConnectivity.EventArguments;
-using static Android.Net.Wifi.P2p.WifiP2pManager;
 
 namespace FileShareConnectivity.Platforms.Android.WifiDirect;
 
@@ -49,7 +48,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
             case WifiP2pManager.WifiP2pThisDeviceChangedAction:
                 handleWifiP2pThisDeviceChangedAction(intent);
                 break;
-            case WifiP2pManager.WifiP2pDiscoveryChangedAction: // TODO: It may be that with the help of this intent we can avoid the check if the Wi-Fi is on within every func of NetworkService!!
+            case WifiP2pManager.WifiP2pDiscoveryChangedAction:
                 handleWifiP2pDiscoveryChangedAction(intent);
                 break;
         }
@@ -76,41 +75,20 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
 
     private void handleWifiP2pConnectionChangedAction(global::Android.Content.Intent intent)
     {
-        bool isNetworkConntected = false;
-        ConnectivityManager connectivityManager = (ConnectivityManager)_context.GetSystemService(Context.ConnectivityService);
-        
-        if (global::Android.OS.Build.VERSION.SdkInt >= global::Android.OS.BuildVersionCodes.M)
-        {
-            // SDK supported 23(M) and above
-            Network network = connectivityManager.ActiveNetwork;
-            NetworkCapabilities activeNetwork = connectivityManager.GetNetworkCapabilities(network);
-            isNetworkConntected = activeNetwork != null &&
-                                  activeNetwork.HasCapability(global::Android.Net.NetCapability.WifiP2p);
-        }
-        else
-        {
-            // SDK supported 21 - 29
-            isNetworkConntected = connectivityManager.ActiveNetworkInfo.IsConnected;
-        }
+        bool isNetworkConntected = isP2PNetworkConntectedToDevice();
         
         if (isNetworkConntected)
         {
-            // we are connected with the other device, request connection
-            // info to find group owner IP
+            // we are connected with the other device, request connection info to find group owner IP
             WifiDirectConnectionInfoListener wifiDirectConnectionInfoListener = new WifiDirectConnectionInfoListener();
-            wifiDirectConnectionInfoListener.ConnectionResult += WifiDirectConnectionInfoListener_ConnectionResult; ;
+            wifiDirectConnectionInfoListener.ConnectionResult += WifiDirectConnectionInfoListener_ConnectionResult;
             _manager.RequestConnectionInfo(_channel, wifiDirectConnectionInfoListener);
         }
         else
         {
-            // TODO: disconnected
+            // TODO: disconnected ??
             OnConnectionResult(new ConnectionResultEventArgs(false, null));
         }
-    }
-
-    private void WifiDirectConnectionInfoListener_ConnectionResult(object sender, ConnectionResultEventArgs e)
-    {
-        OnConnectionResult(e);
     }
 
     private void handleWifiP2pThisDeviceChangedAction(global::Android.Content.Intent intent)
@@ -124,11 +102,38 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         // https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager#WIFI_P2P_DISCOVERY_CHANGED_ACTION
         int discoveryState = intent.GetIntExtra(WifiP2pManager.ExtraDiscoveryState, -1);
 
-        if (discoveryState == (int)WifiP2pDiscoveryStopped)
+        if (discoveryState == (int)WifiP2pManager.WifiP2pDiscoveryStopped)
         {
             // p2p discovery has stopped
             OnFinishDiscovery();    // ???
         }
+    }
+
+    private bool isP2PNetworkConntectedToDevice()
+    {
+        bool isNetworkConntected = false;
+        ConnectivityManager connectivityManager = (ConnectivityManager)_context.GetSystemService(Context.ConnectivityService);
+
+        if (global::Android.OS.Build.VERSION.SdkInt >= global::Android.OS.BuildVersionCodes.M)
+        {
+            // SDK supported 23(M) and above
+            Network network = connectivityManager.ActiveNetwork;
+            NetworkCapabilities activeNetwork = connectivityManager.GetNetworkCapabilities(network);
+            isNetworkConntected = activeNetwork != null &&
+                                  activeNetwork.HasCapability(global::Android.Net.NetCapability.WifiP2p);
+        }
+        else
+        {
+            // SDK supported 21 - 29
+            isNetworkConntected = connectivityManager.ActiveNetworkInfo.IsConnected;
+        }
+
+        return isNetworkConntected;
+    }
+
+    private void WifiDirectConnectionInfoListener_ConnectionResult(object sender, ConnectionResultEventArgs e)
+    {
+        OnConnectionResult(e);
     }
 
     private void peerListListener_DevicesDiscovered(object sender, IEnumerable<WifiP2pDevice> e)

@@ -24,7 +24,7 @@ internal class NetworkService : INetworkService
         throw new NotImplementedException();
     }
 
-    public bool DisconnectFromDevice(Models.NearbyDevice device)
+    public void Disconnect()
     {
         throw new NotImplementedException();
     }

@@ -63,10 +63,10 @@ internal class NetworkProxy : INetworkService, IDisposable
         _networkService.EstablishConnection(device);
     }
 
-    public bool DisconnectFromDevice(NearbyDevice device)
+    public void Disconnect()
     {
         // validateThatWifiP2PEnabled(); ????
-        return _networkService.DisconnectFromDevice(device);
+        _networkService.Disconnect();
     }
 
     private void validateThatWifiP2PEnabled()
@@ -84,6 +84,8 @@ internal class NetworkProxy : INetworkService, IDisposable
     public void Dispose()
     {
         _networkService.UnregisterReceiver();
+        _networkService.StopDiscoverNearbyDevices();
+        _networkService.Disconnect();
         _networkService.Dispose();
     }
 }
