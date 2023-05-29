@@ -5,11 +5,13 @@ public class NearbyDevice
 {
     public string Name { get; }
     public string Address { get; }
+    public bool IsConnected { get; internal set; }
 
-    public NearbyDevice(string name, string address)
+    public NearbyDevice(string name, string address, bool isConnected = false)
     {
         Name = name;
         Address = address;
+        IsConnected = isConnected;
     }
 
     public override bool Equals(object obj)

@@ -57,6 +57,10 @@
                                 <Label Text="{Binding Name, FallbackValue='(unknown)', TargetNullValue='(unknown)'}"
                                         HorizontalOptions="Center"
                                         FontAttributes="Bold"/>
+                                <Label IsVisible="{Binding IsConnected}"
+                                        Text="Connected"
+                                        TextColor="Green"
+                                        HorizontalOptions="Center"/>
                             </VerticalStackLayout>
 
                             <Frame.GestureRecognizers>

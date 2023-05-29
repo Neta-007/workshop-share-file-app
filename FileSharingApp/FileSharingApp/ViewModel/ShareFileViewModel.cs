@@ -17,7 +17,7 @@ public partial class ShareFileViewModel : ObservableObject
     public string FilePath { get; set; }
 
     [ObservableProperty]
-    private bool isScaningProcessViewShouldBeActive;    // TODO: check if we need it
+    private bool isScaningProcessViewShouldBeActive;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotScanningForDevices))]
@@ -67,39 +67,54 @@ public partial class ShareFileViewModel : ObservableObject
             App.AlertService.ShowAlert(ex.Title, ex.Message);
         } 
     }
-
+    /*
+     * The device list update not working if we are come from intent :(
+     */
     private void NetworkService_DevicesFound(object sender, DevicesEventArgs e)
     {
-        NearbyDevices.Clear();
-        if (e.DeviceList?.Any() == true)        // The collection is not null and contains at least one item
+        Task.Run(() =>
         {
-            foreach (NearbyDevice device in e.DeviceList)
+            // Application.Current.Dispatcher.Dispatch
+            Application.Current.MainPage.Dispatcher.Dispatch(() =>
             {
-                NearbyDevices.Add(device);
-            }
-        }
-        else
-        {
-            App.AlertService.ShowAlert("", "No device found");    // change to toast msg?
-        }
+                // Clear the NearbyDevices collection manually, There is a bug when using "NearbyDevices.Clear();" 
+                // https://github.com/dotnet/maui/issues/12219
+                while (NearbyDevices.Count > 0)
+                {
+                    NearbyDevices.RemoveAt(0);
+                }
+
+                if (e.DeviceList?.Any() == true)
+                {
+                    foreach (NearbyDevice device in e.DeviceList)
+                    {
+                        NearbyDevices.Add(device);
+                    }
+                }
+                else
+                {
+                    App.AlertService.ShowAlert("", "No device found");
+                }
+            });
+        });
     }
 
     private void refreshScanIndicators(bool isScanStarted)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
+        //MainThread.BeginInvokeOnMainThread(() =>
+        //{
             IsScanningForDevices = isScanStarted;
             IsScaningProcessViewShouldBeActive = isScanStarted;
-        });
+        //});
     }
 
     private void resetView()
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
+        //MainThread.BeginInvokeOnMainThread(() =>
+        //{
             NearbyDevices.Clear();
             refreshScanIndicators(false);
-        });
+        //});
     }
 
     private void NetworkService_ScanStateChanged(object sender, ScanStateEventArgs e)
@@ -124,15 +139,8 @@ public partial class ShareFileViewModel : ObservableObject
         if(e.IsSuccessConnection && e.ConnectionInfo != null)
         {
             // mark the device frame with green color?...
-
-            if (FilePath != null)
-            {
-                _fileSharingWrapper.FileTransferService.SendFileAsync(e.ConnectionInfo, FilePath);
-            }
-            else
-            {
-                // from file picker?
-            }
+            // FilePath != null => for the sender, FilePath = file picker/share activity
+            _fileSharingWrapper.FileTransferService.StartFileTransfer(e.ConnectionInfo, FilePath);
         }
     }
 

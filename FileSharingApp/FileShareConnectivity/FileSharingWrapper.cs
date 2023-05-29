@@ -7,10 +7,12 @@ namespace FileShareConnectivity;
  */
 public class FileSharingWrapper
 {
-    public INetworkService NetworkService { get; internal set; }
-    public IFileTransferService FileTransferService { get; internal set; }
+    public INetworkService NetworkService { get; }
+    public IFileTransferService FileTransferService { get; }
 
-    public FileSharingWrapper()
+    public FileSharingWrapper(IFileTransferService fileTransferService, INetworkService networkService)
     {
+        FileTransferService = fileTransferService;
+        NetworkService = networkService;
     }
 }

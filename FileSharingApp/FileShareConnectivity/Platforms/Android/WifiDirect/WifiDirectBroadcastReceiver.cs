@@ -15,8 +15,8 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
     private readonly Context _context;
     private readonly WifiP2pManager _manager;
     private readonly WifiP2pManager.Channel _channel;
-    private readonly WifiDirectPeerListListener _peerListListener; 
-
+    private readonly WifiDirectPeerListListener _peerListListener;
+    private readonly WifiDirectConnectionInfoListener _connectionInfoListener;
     public event EventHandler<IEnumerable<WifiP2pDevice>> DevicesDiscovered;
     public event EventHandler<ConnectionResultEventArgs> ConnectionResult;
 
@@ -31,6 +31,8 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         _channel = channel;
         _peerListListener = new WifiDirectPeerListListener();
         _peerListListener.DevicesDiscovered += peerListListener_DevicesDiscovered;
+        _connectionInfoListener = new WifiDirectConnectionInfoListener();
+        _connectionInfoListener.ConnectionResult += connectionInfoListener_ConnectionResult;
     }
 
     public override void OnReceive(Context context, global::Android.Content.Intent intent)
@@ -83,9 +85,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         if (isNetworkConntected)
         {
             // we are connected with the other device, request connection info to find group owner IP
-            WifiDirectConnectionInfoListener wifiDirectConnectionInfoListener = new WifiDirectConnectionInfoListener();
-            wifiDirectConnectionInfoListener.ConnectionResult += WifiDirectConnectionInfoListener_ConnectionResult;
-            _manager.RequestConnectionInfo(_channel, wifiDirectConnectionInfoListener);
+            _manager.RequestConnectionInfo(_channel, _connectionInfoListener);
         }
         else
         {
@@ -138,7 +138,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         return isNetworkConntected;
     }
 
-    private void WifiDirectConnectionInfoListener_ConnectionResult(object sender, ConnectionResultEventArgs e)
+    private void connectionInfoListener_ConnectionResult(object sender, ConnectionResultEventArgs e)
     {
         OnConnectionResult(e);
     }

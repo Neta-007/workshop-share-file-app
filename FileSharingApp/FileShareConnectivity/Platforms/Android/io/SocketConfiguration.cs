@@ -1,4 +1,4 @@
-namespace FileShareConnectivity.Platforms.Android.io;
+namespace FileShareConnectivity.Platforms.Android.IO;
 
 internal static class SocketConfiguration
 {

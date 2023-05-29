@@ -1,33 +1,31 @@
 ﻿using Android.OS;
-using FileShareConnectivity.Platforms.Android.WifiDirect;
+using FileShareConnectivity.Interfaces;
 
 namespace FileShareConnectivity.Platforms.Android;
 
 public class BaseShareActivity : MauiAppCompatActivity
 {
-    private NetworkProxy _networkProxy;
+    private NetworkService _networkService;
 
     protected override void OnCreate(Bundle savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
 
-        if (_networkProxy == null)
+        if (_networkService == null)
         {
-            _networkProxy = new NetworkProxy(this);
-            FileSharingWrapper fileSharingWrapper = (FileSharingWrapper)MauiApplication.Current.Services.GetService(typeof(FileSharingWrapper));
-            fileSharingWrapper.NetworkService = _networkProxy;
+            _networkService = (NetworkService)MauiApplication.Current.Services.GetService(typeof(INetworkService));
         }
     }
 
     protected override void OnResume()
     {
         base.OnResume();
-        _networkProxy?.RegisterReceiver();
+        _networkService?.RegisterReceiver();
     }
 
     protected override void OnPause()
     {
         base.OnPause();
-        _networkProxy?.CleanAnyConnections();
+        _networkService?.CleanAnyOpenConnections();
     }
 }

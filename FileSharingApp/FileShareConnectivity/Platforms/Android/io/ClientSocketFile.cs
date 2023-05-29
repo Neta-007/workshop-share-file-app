@@ -1,25 +1,21 @@
+using Android.Content;
 using Java.Net;
 
-namespace FileShareConnectivity.Platforms.Android.io;
+namespace FileShareConnectivity.Platforms.Android.IO;
 
 internal class ClientSocketFile : IDisposable
 {
     private SendReceiveStreamsFile _sendReceiveStreams;
     private Socket _socket;
-    private string _hostAddress;
 
-    public ClientSocketFile(string hostAddress)
-    {
-        _hostAddress = hostAddress;
-    }
-
-    public void Connect()
+    public void Connect(string hostAddress)
     {
         try
         {
+            // Initiate a connection to the socket server
             _socket = new Socket();
             _socket.Bind(null);
-            _socket.Connect(new InetSocketAddress(_hostAddress, SocketConfiguration.SocketPort), SocketConfiguration.SocketTimeout);
+            _socket.Connect(new InetSocketAddress(hostAddress, SocketConfiguration.SocketPort), SocketConfiguration.SocketTimeout);
 
             // Create SendReceiveStreams to send/receive data
             _sendReceiveStreams = new SendReceiveStreamsFile(_socket);
@@ -38,6 +34,14 @@ internal class ClientSocketFile : IDisposable
         if (_sendReceiveStreams != null)
         {
             _sendReceiveStreams.SendFile(filePath);
+        }
+    }
+
+    public void ReceiveFileToSaveInDifferentApp(Context context)
+    {
+        if (_sendReceiveStreams != null)
+        {
+            _sendReceiveStreams.ReceiveFile(context);//.ReceiveFileToSaveInDifferentApp(context);
         }
     }
 

@@ -19,9 +19,11 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     private Context _context;
     private LinkedList<WifiP2pDevice> _peerList = new();
     private LinkedList<Models.NearbyDevice> _nearbyDevicesName = new();
-    private bool _initComponents = false;
+    private bool _retryChannel = false;
     private bool _isReceiverRegistered = false;
     private ScanState _scanState = ScanState.None;
+    private WifiP2pDevice _connectToPeer = null;
+    private bool _isFirstFalseScanStart = true;
 
     public event EventHandler<DevicesEventArgs> DevicesFound;
     public event EventHandler<ScanStateEventArgs> ScanStateChanged;
@@ -29,24 +31,12 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
     public NetworkService()
     {
+        initNetworkServiceComponents();
     }
 
-    public void InitNetworkServiceComponents(Context context)
+    private void initNetworkServiceComponents()
     {
-        if (_initComponents)
-        {
-            return;
-        }
-
-        _initComponents = true;
-
-        /*
-         * _context = global::Android.App.Application.Context;
-         * Application.Context generally should only be used if you need a Context whose lifecycle is separate from the current context,
-         * that is tied to the lifetime of the process rather than the current component.
-         * So, we will use the activity context
-         */
-        _context = context;
+        _context = global::Android.App.Application.Context;
 
         // This class provide the API for managing Wi-Fi peer-to-peer connectivity
         _wifiP2pManager = (WifiP2pManager)_context.GetSystemService(Context.WifiP2pService);
@@ -74,37 +64,42 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
     public void StartDiscoverNearbyDevices()
     {
+        _isFirstFalseScanStart = false;
+        validateThatWifiP2PEnabled();
         _wifiP2pManager.DiscoverPeers(_channel, new WifiDirectActionListener(
             () => scanOperationCompleted(ScanState.Started, "Discovery started successfully."),
             (e) => scanOperationCompleted(ScanState.Failed, $"Failed to start discovery. Reason: {e}")));      // When it will find Peers => it will raise the intent in the _reciver
-        
-        OnScanStateChanged(new ScanStateEventArgs(_scanState));
     }
 
     public void StopDiscoverNearbyDevices()
     {
-        _wifiP2pManager.StopPeerDiscovery(_channel, new WifiDirectActionListener(
-            () => _scanState = ScanState.Stopped,
-            (e) => _scanState = ScanState.Failed));
+        StopDiscoverNearbyDevices(ScanState.Stopped);
+    }
 
-        OnScanStateChanged(new ScanStateEventArgs(_scanState));
+    public void StopDiscoverNearbyDevices(ScanState scanStateOnSuccess)
+    {
+        _wifiP2pManager.StopPeerDiscovery(_channel, new WifiDirectActionListener(
+            () => updateScanState(scanStateOnSuccess),
+            (e) => updateScanState(ScanState.Failed)));
     }
 
     public IEnumerable<Models.NearbyDevice> DiscoverNearbyDevices()
     {
+        validateThatWifiP2PEnabled();
         throw new NotImplementedException();
     }
 
     public void EstablishConnection(Models.NearbyDevice device)
     {
-        WifiP2pDevice foundDevice = _peerList.FirstOrDefault(d => d.DeviceAddress == device.Address);
+        validateThatWifiP2PEnabled();
+        _connectToPeer = _peerList.FirstOrDefault(d => d.DeviceAddress == device.Address);
 
-        if (foundDevice != null)
+        if (_connectToPeer != null)
         {
             WifiP2pConfig config = new WifiP2pConfig();
-            config.DeviceAddress = foundDevice.DeviceAddress;
+            config.DeviceAddress = _connectToPeer.DeviceAddress;
             config.Wps.Setup = WpsInfo.Pbc;
-            config.GroupOwnerIntent = 0;
+            //config.GroupOwnerIntent = 0;
 
             _wifiP2pManager.Connect(_channel, config, new WifiDirectActionListener(
                 () => showToastMessage("Start establishing connection"),
@@ -118,35 +113,24 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
     public void Disconnect()
     {
+        _connectToPeer = null;
         _wifiP2pManager.RemoveGroup(_channel, new WifiDirectActionListener(() => { }, e => { }));
     }
 
     void WifiP2pManager.IChannelListener.OnChannelDisconnected()
     {
         // we will try once more
-        /*if (_wifiP2pManager != null && !_retryChannel)
+        if (_wifiP2pManager != null && !_retryChannel)
         {
-            Toast.MakeText(_context, "Channel lost. Trying again", ToastLength.Long).Show();
-            OnFinishScan(null);
+            showToastMessage("Channel lost. Trying again");
+            updateScanState(ScanState.Failed);
             _retryChannel = true;
             _wifiP2pManager.Initialize(_context, _context.MainLooper, null);
         }
         else
         {
-            Toast.MakeText(_context, "Severe! Channel is probably lost permanently. Try Disable/Re-Enable P2P.",
-                           ToastLength.Long).Show();
-        }*/
-    }
-
-    private void scanOperationCompleted(ScanState scanState, string message)
-    {
-        showToastMessage(message);
-        _scanState = scanState;
-    }
-
-    private void showToastMessage(string message)
-    {
-        Toast.MakeText(_context, message, ToastLength.Short).Show();
+            showToastMessage("Severe! Channel is probably lost permanently. Try Disable/Re-Enable P2P.");
+        }
     }
 
     /*
@@ -160,7 +144,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         foreach (WifiP2pDevice device in deviceList)
         {
             _peerList.AddLast(device);
-            _nearbyDevicesName.AddLast(new Models.NearbyDevice(device.DeviceName, device.DeviceAddress));
+            _nearbyDevicesName.AddLast(new Models.NearbyDevice(device.DeviceName, device.DeviceAddress, device.Status == WifiP2pDeviceState.Connected));
         }
 
         OnDevicesFound(new DevicesEventArgs(_nearbyDevicesName));
@@ -170,13 +154,17 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     {
         if(_scanState != ScanState.None)       // TODO: when the app init the WifiP2pManager.WifiP2pDiscoveryChangedAction intent is triggered...
         {
-            _scanState = e.eScanState;//_scanState == ScanState.Started ? ScanState.Stopped : _scanState;
-            OnScanStateChanged(new ScanStateEventArgs(_scanState));
+            updateScanState(e.eScanState);
         }
     }
 
     private void receiver_ConnectionResult(object sender, ConnectionResultEventArgs e)
     {
+        /*if(_connectToPeer != null && _connectToPeer.Status == WifiP2pDeviceState.Connected)
+        {
+            e.RecieverDevice = 
+        }*/
+
         OnConnectionResult(e);
     }
 
@@ -220,5 +208,51 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
         {
             ConnectionResult(this, e);
         }
+    }
+
+    private void updateScanState(ScanState scanState)
+    {
+        // Stop can logicly can only after start..
+        // Too many unnecessary scan events are being thrown (because of the intent in the receiver)
+        // Sometimes the first ScanState.Started that thrown is false (because of the intent in the receiver)
+        bool scanBaseLogic = _scanState != scanState;
+        bool scanFirstStartLogic = scanState != ScanState.Started || (scanState == ScanState.Started && !_isFirstFalseScanStart);
+        bool scanStopLogic = scanState != ScanState.Stopped || (scanState == ScanState.Stopped && _scanState != ScanState.Reset);
+
+        if (scanBaseLogic && scanFirstStartLogic && scanStopLogic)
+        {
+            _scanState = scanState;
+            OnScanStateChanged(new ScanStateEventArgs(_scanState));
+        }
+    }
+
+    private void scanOperationCompleted(ScanState scanState, string message)
+    {
+        showToastMessage(message);
+        updateScanState(scanState);
+    }
+
+    private void showToastMessage(string message)
+    {
+        Toast.MakeText(_context, message, ToastLength.Short).Show();
+    }
+
+    private void validateThatWifiP2PEnabled()
+    {
+        if (!Utils.IsWifiEnabled())
+        {
+            throw new MyException("Please enable Wi-Fi", "");
+        }
+        else if (!Utils.IsWifiDirectSupported())
+        {
+            throw new MyException("Wi-Fi Direct is not supported on this device", "");
+        }
+    }
+
+    internal void CleanAnyOpenConnections()
+    {
+        UnregisterReceiver();
+        StopDiscoverNearbyDevices(ScanState.Reset);
+        Disconnect();
     }
 }

@@ -1,4 +1,4 @@
-﻿using Android.App;
+﻿/*using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
@@ -16,7 +16,7 @@ namespace FileSharingApp;
     ScreenOrientation = ScreenOrientation.Portrait,
     ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode |
                         ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
-[IntentFilter(new[] { Intent.ActionSend }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "*/*")]
+//[IntentFilter(new[] { Intent.ActionSend }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "*//*")]
 class ShareActivity : BaseShareActivity
 {
     protected override void OnCreate(Bundle savedInstanceState)
@@ -34,7 +34,7 @@ class ShareActivity : BaseShareActivity
                 {
                     var viewModel = MauiApplication.Current.Services.GetRequiredService<ShareFileViewModel>();
                     viewModel.FilePath = uri.ToString();
-                    Microsoft.Maui.Controls.Shell.Current.GoToAsync($"{nameof(ShareFilePage)}");
+                    //Microsoft.Maui.Controls.Shell.Current.GoToAsync($"{nameof(ShareFilePage)}");
                 }
             }
         }
@@ -44,3 +44,4 @@ class ShareActivity : BaseShareActivity
 
     }
 }
+*/

@@ -1,7 +1,8 @@
+using Android.Content;
 using Java.Net;
 using IOException = Java.IO.IOException;
 
-namespace FileShareConnectivity.Platforms.Android.io;
+namespace FileShareConnectivity.Platforms.Android.IO;
 
 internal class ServerSocketFile : IDisposable
 {
@@ -15,7 +16,7 @@ internal class ServerSocketFile : IDisposable
         {
             _serverSocket = new ServerSocket(SocketConfiguration.SocketPort);
 
-            // Accept incoming connections
+            // Accept incoming connections (reference of the client socket)
             _clientSocket = _serverSocket.Accept();
 
             // Create SendReceiveStreams to send/receive data
@@ -37,6 +38,14 @@ internal class ServerSocketFile : IDisposable
         if (_sendReceiveStreams != null)
         {
             _sendReceiveStreams.SendFile(filePath);
+        }
+    }
+
+    public void ReceiveFileToSaveInDifferentApp(Context context)
+    {
+        if (_sendReceiveStreams != null)
+        {
+            _sendReceiveStreams.ReceiveFile(context);//ReceiveFileToSaveInDifferentApp(context);
         }
     }
 

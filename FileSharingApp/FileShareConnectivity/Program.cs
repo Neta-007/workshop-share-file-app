@@ -15,7 +15,7 @@ public static class Program
 
     private static void registerServices(in IServiceCollection services)
     {
-        services.AddTransient<INetworkService, NetworkService>();
+        services.AddSingleton<INetworkService, NetworkService>();
         services.AddSingleton<IFileTransferService, FileTransferService>();
     }
 

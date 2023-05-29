@@ -1,24 +1,43 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-	<application
-			android:allowBackup="true"
-			android:icon="@mipmap/applogo"
-			android:roundIcon="@mipmap/applogo_round"
-			android:supportsRtl="true">
-	</application>
-	
-	<uses-sdk android:targetSdkVersion="33" android:minSdkVersion="24" />
+	<!--<uses-sdk android:targetSdkVersion="33" android:minSdkVersion="24" />-->
+	<uses-sdk android:minSdkVersion="24" />
 
 	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 	<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.INTERNET" />
-	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	<!--<uses-permission android:name="android.permission.READ_PHONE_STATE" />-->
 	
 	<!-- If your app targets Android 13 (API level 33) or higher, you must declare the NEARBY_WIFI_DEVICES permission. -->
 	<!-- If your app derives location information from Wi-Fi APIs, don't include the "usesPermissionFlags" attribute. -->
 	<uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
 	<!-- If any feature in your app relies on precise location information, don't include the "maxSdkVersion" attribute. -->
 	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+
+	<application
+			android:allowBackup="true"
+			android:icon="@mipmap/applogo"
+			android:roundIcon="@mipmap/applogo_round"
+			android:supportsRtl="true">
+
+		<!--
+		<provider
+			android:name="androidx.core.content.FileProvider"
+			android:authorities="${applicationId}.fileprovider"
+			android:exported="false"
+			android:grantUriPermissions="true">
+			<meta-data
+				android:name="android.support.FILE_PROVIDER_PATHS"
+				android:resource="@xml/file_paths" />
+		</provider>
+		-->
+
+	</application>
+
+	<!-- Used for transferring files  after a successful connection -->
+	<!-- <service android:enabled="true" android:name=".FileTransferServiceActivity" /> -->
 
 </manifest>
