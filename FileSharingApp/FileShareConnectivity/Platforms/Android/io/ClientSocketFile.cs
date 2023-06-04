@@ -1,18 +1,18 @@
-using Android.Content;
 using Java.Net;
+using Microsoft.Extensions.Logging;
 
 namespace FileShareConnectivity.Platforms.Android.IO;
 
-internal class ClientSocketFile : IDisposable
+internal class ClientSocketFile : BaseFileSocket
 {
-    private SendReceiveStreamsFile _sendReceiveStreams;
+    private ILogger<ClientSocketFile> _logger = MauiApplication.Current.Services.GetService<ILogger<ClientSocketFile>>();
     private Socket _socket;
 
     public void Connect(string hostAddress)
     {
         try
         {
-            // Initiate a connection to the socket server
+            _logger.LogInformation($"ClientSocketFile Initiate a connection to the socket server. HostAddress: {hostAddress}, Port: {SocketConfiguration.SocketPort}, timeout: {SocketConfiguration.SocketTimeout}");
             _socket = new Socket();
             _socket.Bind(null);
             _socket.Connect(new InetSocketAddress(hostAddress, SocketConfiguration.SocketPort), SocketConfiguration.SocketTimeout);
@@ -25,11 +25,11 @@ internal class ClientSocketFile : IDisposable
         }
         catch (IOException e)
         {
-            // "Failed to connect to server: " + e.Message
+            _logger.LogError($"Failed to connect to server: {e.Message}");
         }
     }
 
-    public void SendFile(string filePath)
+    public override void SendFile(string filePath)
     {
         if (_sendReceiveStreams != null)
         {
@@ -37,31 +37,32 @@ internal class ClientSocketFile : IDisposable
         }
     }
 
-    public void ReceiveFileToSaveInDifferentApp(Context context)
+    public override void ReceiveFileToSaveInDifferentApp()
     {
         if (_sendReceiveStreams != null)
         {
-            _sendReceiveStreams.ReceiveFile(context);//.ReceiveFileToSaveInDifferentApp(context);
+            _sendReceiveStreams.ReceiveFile();//.ReceiveFileToSaveInDifferentApp();
         }
     }
 
-    public void Close()
+    public override void Close()
     {
         try
         {
             if (_socket != null)
             {
+                _logger.LogInformation($"ClientSocketFile closing socket. Port: {SocketConfiguration.SocketPort}, timeout: {SocketConfiguration.SocketTimeout}");
                 _socket.Close();
                 _socket = null;
             }
         }
         catch (IOException e)
         {
-            // "Failed to close socket: " + e.Message
+            _logger.LogError($"Failed to close socket: {e.Message}");
         }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         Close();
     }

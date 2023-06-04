@@ -7,11 +7,13 @@ using FileShareConnectivity.EventArguments;
 using FileShareConnectivity.Exceptions;
 using FileShareConnectivity.Interfaces;
 using FileShareConnectivity.Platforms.Android.WifiDirect;
+using Microsoft.Extensions.Logging;
 
 namespace FileShareConnectivity.Platforms;
 
 internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListener, INetworkService
 {
+    private ILogger<NetworkService> _logger = MauiApplication.Current.Services.GetService<ILogger<NetworkService>>();
     private WifiP2pManager _wifiP2pManager;
     private WifiP2pManager.Channel _channel;
     private WifiDirectBroadcastReceiver _receiver;
@@ -22,8 +24,9 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     private bool _retryChannel = false;
     private bool _isReceiverRegistered = false;
     private ScanState _scanState = ScanState.None;
-    private WifiP2pDevice _connectToPeer = null;
     private bool _isFirstFalseScanStart = true;
+
+    internal LinkedList<WifiP2pDevice> _connectedPeers { private set; get; } = new();
 
     public event EventHandler<DevicesEventArgs> DevicesFound;
     public event EventHandler<ScanStateEventArgs> ScanStateChanged;
@@ -92,15 +95,15 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     public void EstablishConnection(Models.NearbyDevice device)
     {
         validateThatWifiP2PEnabled();
-        _connectToPeer = _peerList.FirstOrDefault(d => d.DeviceAddress == device.Address);
+        WifiP2pDevice connectToPeer = _peerList.FirstOrDefault(d => d.DeviceAddress == device.Address);
 
-        if (_connectToPeer != null)
+        if (connectToPeer != null)
         {
             WifiP2pConfig config = new WifiP2pConfig();
-            config.DeviceAddress = _connectToPeer.DeviceAddress;
+            config.DeviceAddress = connectToPeer.DeviceAddress;
             config.Wps.Setup = WpsInfo.Pbc;
-            //config.GroupOwnerIntent = 0;
-
+            
+            _logger.LogDebug($"EstablishConnection. Start connecting with peer: {device}");
             _wifiP2pManager.Connect(_channel, config, new WifiDirectActionListener(
                 () => showToastMessage("Start establishing connection"),
                 e => showToastMessage($"Failed to start connection. Reason: {e}")));
@@ -113,7 +116,6 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
     public void Disconnect()
     {
-        _connectToPeer = null;
         _wifiP2pManager.RemoveGroup(_channel, new WifiDirectActionListener(() => { }, e => { }));
     }
 
@@ -141,11 +143,19 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     {
         _peerList.Clear();
         _nearbyDevicesName.Clear();
+        _connectedPeers.Clear();
         foreach (WifiP2pDevice device in deviceList)
         {
             _peerList.AddLast(device);
             _nearbyDevicesName.AddLast(new Models.NearbyDevice(device.DeviceName, device.DeviceAddress, device.Status == WifiP2pDeviceState.Connected));
+            if(device.Status == WifiP2pDeviceState.Connected)
+            {
+                _connectedPeers.AddLast(device);
+            }
         }
+
+        _logger.LogDebug($"receiver_DevicesDiscovered. Number of found devices: {_nearbyDevicesName.Count}");
+        _logger.LogDebug($"receiver_DevicesDiscovered. Number of connected devices: {_connectedPeers.Count}");
 
         OnDevicesFound(new DevicesEventArgs(_nearbyDevicesName));
     }
@@ -160,10 +170,7 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
 
     private void receiver_ConnectionResult(object sender, ConnectionResultEventArgs e)
     {
-        /*if(_connectToPeer != null && _connectToPeer.Status == WifiP2pDeviceState.Connected)
-        {
-            e.RecieverDevice = 
-        }*/
+        _logger.LogDebug($"receiver_ConnectionResult. IsSuccessConnection {e.IsSuccessConnection}, ConnectionInfo {e.ConnectionInfo}");
 
         OnConnectionResult(e);
     }
@@ -230,11 +237,13 @@ internal class NetworkService : Java.Lang.Object, WifiP2pManager.IChannelListene
     {
         showToastMessage(message);
         updateScanState(scanState);
+        _logger.LogDebug($"scanOperationCompleted. scanState: {scanState}, message: {message}");
     }
 
     private void showToastMessage(string message)
     {
         Toast.MakeText(_context, message, ToastLength.Short).Show();
+        _logger.LogDebug($"showToastMessage. message: {message}");
     }
 
     private void validateThatWifiP2PEnabled()

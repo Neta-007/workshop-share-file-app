@@ -19,19 +19,24 @@ internal class WifiPermissions : Microsoft.Maui.ApplicationModel.Permissions.Bas
         var result = new List<(string androidPermission, bool isRuntime)>();
         var sdk = (int)global::Android.OS.Build.VERSION.SdkInt;
 
-        result.Add((global::Android.Manifest.Permission.AccessWifiState, false));
-        result.Add((global::Android.Manifest.Permission.ChangeWifiState, false));
-        result.Add((global::Android.Manifest.Permission.ChangeNetworkState, false));
-        result.Add((global::Android.Manifest.Permission.Internet, false));
-        result.Add((global::Android.Manifest.Permission.AccessNetworkState, false));
-
+        result.Add((global::Android.Manifest.Permission.AccessWifiState, true));
+        result.Add((global::Android.Manifest.Permission.ChangeWifiState, true));
+        result.Add((global::Android.Manifest.Permission.AccessNetworkState, true));
+        result.Add((global::Android.Manifest.Permission.ChangeNetworkState, true));
+        result.Add((global::Android.Manifest.Permission.Internet, true));
+        result.Add((global::Android.Manifest.Permission.WriteExternalStorage, true));
+        
         if (sdk >= 33)
         {
             result.Add((global::Android.Manifest.Permission.NearbyWifiDevices, true));
+            result.Add((global::Android.Manifest.Permission.ReadMediaAudio, true));
+            result.Add((global::Android.Manifest.Permission.ReadMediaImages, true));
+            result.Add((global::Android.Manifest.Permission.ReadMediaVideo, true));
         }
         else
         {
             result.Add((global::Android.Manifest.Permission.AccessFineLocation, true));
+            result.Add((global::Android.Manifest.Permission.ReadExternalStorage, true));
         }
 
         requiredPermissions = result.ToArray();

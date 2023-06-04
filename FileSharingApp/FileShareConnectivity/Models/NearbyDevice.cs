@@ -5,7 +5,7 @@ public class NearbyDevice
 {
     public string Name { get; }
     public string Address { get; }
-    public bool IsConnected { get; internal set; }
+    public bool IsConnected { get; }
 
     public NearbyDevice(string name, string address, bool isConnected = false)
     {
@@ -44,5 +44,12 @@ public class NearbyDevice
     public override int GetHashCode()
     {
         return this.Address.GetHashCode();
+    }
+
+    public override string ToString()
+    {
+        string connectedStatus = IsConnected ? "Connected" : "Not Connected";
+
+        return $"NearbyDevice: Name: {Name}, Address: {Address}, Status: {connectedStatus}";
     }
 }

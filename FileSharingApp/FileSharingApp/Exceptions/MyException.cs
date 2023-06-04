@@ -9,4 +9,9 @@ public class MyException : Exception
     {
         Title = title;
     }
+
+    public override string ToString()
+    {
+        return $"error info: Title: {Title}, Message: {base.Message}";
+    }
 }

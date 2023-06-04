@@ -80,9 +80,9 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
 
     private void handleWifiP2pConnectionChangedAction(global::Android.Content.Intent intent)
     {
-        bool isNetworkConntected = isP2PNetworkConntectedToDevice();
-
-        if (isNetworkConntected)
+        //bool isNetworkConntected = isP2PNetworkConnectedToDevice();
+        var networkInfo = (NetworkInfo)intent.GetParcelableExtra(WifiP2pManager.ExtraNetworkInfo);
+        if (networkInfo.IsConnected)
         {
             // we are connected with the other device, request connection info to find group owner IP
             _manager.RequestConnectionInfo(_channel, _connectionInfoListener);
@@ -116,9 +116,9 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         OnDiscoveryChanged(new ScanStateEventArgs(newState));
     }
 
-    private bool isP2PNetworkConntectedToDevice()
+    private bool isP2PNetworkConnectedToDevice()
     {
-        bool isNetworkConntected = false;
+        bool isNetworkConnected = false;
         ConnectivityManager connectivityManager = (ConnectivityManager)_context.GetSystemService(Context.ConnectivityService);
 
         if (global::Android.OS.Build.VERSION.SdkInt >= global::Android.OS.BuildVersionCodes.M)
@@ -126,16 +126,20 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
             // SDK supported 23(M) and above
             Network network = connectivityManager.ActiveNetwork;
             NetworkCapabilities activeNetwork = connectivityManager.GetNetworkCapabilities(network);
-            isNetworkConntected = activeNetwork != null &&
-                                  activeNetwork.HasCapability(global::Android.Net.NetCapability.Internet);
+            //isNetworkConnected = activeNetwork != null && activeNetwork.HasTransport(NetworkCapabilities.TransportWifi);
+
+            //isNetworkConntected = activeNetwork != null &&
+              //                    activeNetwork.HasCapability(global::Android.Net.NetCapability.Internet);
         }
         else
         {
             // SDK supported 21 - 29
-            isNetworkConntected = connectivityManager.ActiveNetworkInfo.IsConnected;
+            NetworkInfo networkInfo = connectivityManager.ActiveNetworkInfo;
+            isNetworkConnected = networkInfo != null && networkInfo.Type == ConnectivityType.Wifi && networkInfo.IsConnected;
+            //isNetworkConnected = connectivityManager.ActiveNetworkInfo.IsConnected;
         }
 
-        return isNetworkConntected;
+        return isNetworkConnected;
     }
 
     private void connectionInfoListener_ConnectionResult(object sender, ConnectionResultEventArgs e)

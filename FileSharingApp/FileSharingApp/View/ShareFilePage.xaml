@@ -77,14 +77,21 @@
             </CollectionView>
         </ScrollView>
 
-        <Button Command="{Binding FindDevicesCommand}"
+        <StackLayout Grid.Row="2">
+
+            <Button Command="{Binding PickAndShowCommand}" 
+                IsEnabled="{Binding IsNotScanningForDevices}"
+                Text="Pick File"
+                FontAttributes="Bold"
+                Margin="8"/>
+            <Button Command="{Binding FindDevicesCommand}"
                 IsEnabled="{Binding IsNotScanningForDevices}"
                 Text="Show Devices"
                 FontAttributes="Bold"
-                Grid.Row="2"
                 Margin="8"/>
-        
+
+        </StackLayout>
+
     </Grid>
 
-    
 </ContentPage>

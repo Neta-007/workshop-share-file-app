@@ -1,15 +1,20 @@
-using Java.IO;
 using Java.Net;
 using IOException = Java.IO.IOException;
 using File = Java.IO.File;
+using AndroidUri = global::Android.Net.Uri;
 using Android.Content;
+using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
+using Android.Provider;
 using Android.Webkit;
-using Android.Content.PM;
+using Android.Widget;
 
 namespace FileShareConnectivity.Platforms.Android.IO;
 
 internal class SendReceiveStreamsFile
 {
+    private ILogger<SendReceiveStreamsFile> _logger = MauiApplication.Current.Services.GetService<ILogger<SendReceiveStreamsFile>>();
+    Context _context = global::Android.App.Application.Context;
     private Socket _socket;     // Use the socket input and output streams to communicate between client and server
 
     public SendReceiveStreamsFile(Socket socket)
@@ -17,267 +22,177 @@ internal class SendReceiveStreamsFile
         _socket = socket;
     }
 
-    /*public void SendFile(string filePath)
-    {
-        try
-        {
-            using (Stream outputStream = _socket.OutputStream)
-            using (Stream inputStream = _socket.InputStream)
-            {
-                File file = new File(filePath);
-                string fileName = file.Name;
-                long fileSize = file.Length();
-
-                writeStringToStream(fileName, outputStream);
-                writeLongToStream(fileSize, outputStream);
-
-                // Read the acknowledgment message from the receiver
-                byte[] acknowledgmentBuffer = new byte[SocketConfiguration.BufferSize];
-                int acknowledgmentBytesRead = inputStream.Read(acknowledgmentBuffer);
-
-                if (acknowledgmentBytesRead > 0)
-                {
-                    string acknowledgmentMessage = System.Text.Encoding.ASCII.GetString(acknowledgmentBuffer, 0, acknowledgmentBytesRead);
-
-                    if (acknowledgmentMessage == SocketConfiguration.AcknowledgmentMessage)
-                    {
-                        // Start sending the file
-                        using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                        {
-                            byte[] buffer = new byte[SocketConfiguration.BufferSize];
-                            int bytesRead;
-
-                            while ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) > 0)
-                            {
-                                outputStream.Write(buffer, 0, bytesRead);
-                            }
-                        }
-
-                        outputStream.Flush();
-                    }
-                }
-            }
-        }
-        catch (IOException e)
-        {
-            // "Error sending file: " + e.Message
-        }
-    }*/
-
     public void SendFile(string filePath)
     {
-        var context = global::Android.App.Application.Context;
+        _logger.LogDebug($"SendReceiveStreamsFile SendFile {filePath}");
 
-        try
-        {
-            var stream = _socket.OutputStream;
-            var cr = context.ContentResolver;
-            Stream inputStream = null;
+        var file = new Java.IO.File(filePath);
 
-            try
-            {
-                inputStream = cr.OpenInputStream(global::Android.Net.Uri.Parse(filePath));
-            }
-            catch (Java.IO.FileNotFoundException e)
-            {
-
-            }
-
-            CopyFile(inputStream, stream);
-        }
-        catch (IOException e)
-        {
-        }
-    }
-
-    public void ReceiveFile(Context context)
-    {
-        Task.Factory.StartNew(() =>
+        if (file.Exists())
         {
             try
             {
-                var f = new File(global::Android.OS.Environment.ExternalStorageDirectory + "/"
-                                 + AppInfo.Current.PackageName + "/wifip2pshared-" + DateTime.Now.Ticks + ".jpg");
-                var dirs = new File(f.Parent);
-                if (!dirs.Exists())
-                    dirs.Mkdirs();
-                f.CreateNewFile();
+                var stream = _socket.OutputStream;
+                var cr = _context.ContentResolver;
+                Stream inputStream = null;
 
-                var inputStream = _socket.InputStream;
-                CopyFile(inputStream, new FileStream(f.ToString(), FileMode.OpenOrCreate));
-
-                return f.AbsolutePath;
+                try
+                {
+                    AndroidUri fileUri = getValidUriPath(filePath);
+                    _logger.LogDebug($"SendFile AndroidUri fileUri: {fileUri}");
+                    inputStream = cr.OpenInputStream(fileUri);
+                    CopyFile(inputStream, stream);
+                }
+                catch (Java.IO.FileNotFoundException e)
+                {
+                    _logger.LogError($"Error sending file, FileNotFoundException: {e.Message}");
+                }
             }
             catch (IOException e)
             {
-                return null;
+                _logger.LogError($"Error sending file: {e.Message}");
             }
-        })
-        .ContinueWith(result =>
+        }
+        else
         {
-            if (result != null)
-            {
-                var intent = new Intent();
-                intent.SetAction(Intent.ActionView);
-                intent.SetDataAndType(global::Android.Net.Uri.Parse("file://" + result.Result), "image/*");
-                context.StartActivity(intent);
-            }
-        });
-
+            _logger.LogError($"Error sending file: File not exist");
+        }
     }
 
-    public static bool CopyFile(Stream inputStream, Stream outputStream)
+    public void ReceiveFile()
     {
+        string fileReceivePath = null;
+
+        try
+        {
+            _logger.LogDebug($"SendReceiveStreamsFile ReceiveFile");
+            //File mediaStorageDir = _context.GetExternalFilesDir(null);
+            var externalStorageDir = _context.GetExternalFilesDir(null).AbsolutePath;
+            //var externalStorageDir = global::Android.OS.Environment.GetExternalStoragePublicDirectory(global::Android.OS.Environment.DirectoryPictures);
+
+            //var externalStorageDir = global::Android.OS.Environment.ExternalStorageDirectory;
+            string packageName = AppInfo.Current.PackageName;
+            _logger.LogDebug($"SendReceiveStreamsFile mediaStorageDir {externalStorageDir}");
+            _logger.LogDebug($"SendReceiveStreamsFile ReceiveFile {packageName}");
+
+            File fileDir = new File(externalStorageDir, packageName);
+            _logger.LogDebug($"SendReceiveStreamsFile fileDir {fileDir}");
+
+            _logger.LogDebug($"SendReceiveStreamsFile !fileDir.Exists(): {!fileDir.Exists()}");
+            if (!fileDir.Exists())
+            {
+                fileDir.Mkdirs();
+            }
+            _logger.LogDebug($"SendReceiveStreamsFile after !fileDir.Exists(): {!fileDir.Exists()}");
+
+            long timestamp = DateTime.Now.Ticks;
+            string filePath = System.IO.Path.Combine(fileDir.Path, $"wifip2pshared-{timestamp}");   // TODO: add later the file type
+            _logger.LogDebug($"SendReceiveStreamsFile filePath {filePath}");
+
+            File file = new File(filePath);
+            _logger.LogDebug($"SendReceiveStreamsFile !file.Exists(): {!file.Exists()}");
+            if (!file.Exists())
+            {
+                file.CreateNewFile();
+            }
+            _logger.LogDebug($"SendReceiveStreamsFile after !file.Exists(): {!file.Exists()}");
+            _logger.LogDebug($"SendReceiveStreamsFile file {file}");
+
+            Stream inputStream = _socket.InputStream;
+            Stream outputStream = new FileStream(file.Path, FileMode.OpenOrCreate);
+
+            CopyFile(inputStream, outputStream);
+
+            fileReceivePath = file.AbsolutePath;
+        }
+        catch (IOException e)
+        {
+            _logger.LogError($"Error receiving file: {e.Message}");
+        }
+
+        _logger.LogDebug($"SendReceiveStreamsFile ReceiveFile => fileReceivePath: {fileReceivePath}");
+
+        /* TODO: not working
+        if (fileReceivePath != null)
+        {
+            var intent = new Intent();
+            intent.SetAction(Intent.ActionView);
+            intent.SetDataAndType(global::Android.Net.Uri.Parse("file://" + fileReceivePath), "image/*");
+            _context.StartActivity(intent);
+        }*/
+    }
+
+    public bool CopyFile(Stream inputStream, Stream outputStream)
+    {
+        _logger.LogDebug($"SendReceiveStreamsFile CopyFile");
         var buf = new byte[1024];
+        bool res = true;
+
         try
         {
             int n;
+
             while ((n = inputStream.Read(buf, 0, buf.Length)) != 0)
+            {
                 outputStream.Write(buf, 0, n);
+            }
+
             outputStream.Close();
             inputStream.Close();
         }
         catch (Exception e)
         {
-            return false;
+            _logger.LogError($"Error copying file: {e.Message}");
+            res = false;
         }
-        return true;
+
+        return res;
     }
 
-    public void ReceiveFileToSaveInDifferentApp(Context context)
+    private AndroidUri getValidUriPath(string filePath)
     {
-        using (Stream outputStream = _socket.OutputStream)
-        using (Stream inputStream = _socket.InputStream)
+        AndroidUri fileUri = null;
+
+        if (isValidUri(filePath))
         {
-            string fileName = readStringFromStream(inputStream);
-            long fileSize = readLongFromStream(inputStream);
-
-            // Create a temporary file to save the received data
-            string tempFilePath = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), fileName);
-            using (FileStream fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
+            try
             {
-                byte[] buffer = new byte[SocketConfiguration.BufferSize];
-                int bytesRead;
-                long totalBytesReceived = 0;
-
-                // Receive and write file data
-                while ((bytesRead = inputStream.Read(buffer)) > 0)
-                {
-                    fileStream.Write(buffer, 0, bytesRead);
-                    totalBytesReceived += bytesRead;
-
-                    // Check if all bytes have been received
-                    if (totalBytesReceived >= fileSize)
-                    {
-                        break;
-                    }
-                }
+                fileUri = AndroidUri.Parse(filePath);
             }
-
-            // Create a content URI for the temporary file
-            global::Android.Net.Uri fileUri = FileProvider.GetUriForFile(context, context.PackageName + ".fileprovider", new File(tempFilePath));
-
-            // Get the responsible app to handle the file
-            Intent intent = new Intent(Intent.ActionView);
-            intent.SetDataAndType(fileUri, "application/*");
-            intent.SetFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.NewTask);
-            intent.AddFlags(ActivityFlags.NoHistory);
-            intent.AddFlags(ActivityFlags.ClearTop);
-            IList<ResolveInfo> resolvedActivities = context.PackageManager.QueryIntentActivities(intent, 0);
-
-            if (resolvedActivities.Count > 0)
+            catch (Exception e)
             {
-                // Let the receiver choose the responsible app to handle the file
-                intent.SetFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.NewTask);
-                context.StartActivity(intent);
+                _logger.LogError($"Error getValidUriPath: URI parsing failed. {e.Message}");
+            }
+        }
+        else
+        {
+            _logger.LogInformation($"getValidUriPath: The filePath is not a valid URI, attempt to parse it as a file path");
+            Java.IO.File file = new Java.IO.File(filePath);
+
+            if (file.Exists())
+            {
+                try
+                {
+                    fileUri = AndroidUri.FromFile(new Java.IO.File(filePath));
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError($"Error getValidUriPath: File path parsing failed. {e.Message}");
+                }
             }
             else
             {
-                // No responsible app found, handle the scenario accordingly
-            }
-
-            // Send acknowledgment message to the sender
-            byte[] acknowledgmentBuffer = System.Text.Encoding.ASCII.GetBytes(SocketConfiguration.AcknowledgmentMessage);
-            outputStream.Write(acknowledgmentBuffer, 0, acknowledgmentBuffer.Length);
-            outputStream.Flush();
-        }
-    }
-
-    /*public void ReceiveFile(string saveFolderPath)
-    {
-        try
-        {
-            using (Stream outputStream = _socket.OutputStream)
-            using (Stream inputStream = _socket.InputStream)
-            {
-                // Read file name from the input stream
-                string fileName = readStringFromStream(inputStream);
-
-                // Read file size from the input stream
-                long fileSize = readLongFromStream(inputStream);
-
-                // Create a new file to save the received data
-                string saveFilePath = Path.Combine(saveFolderPath, fileName);
-                using (FileStream fileStream = new FileStream(saveFilePath, FileMode.Create, FileAccess.Write))
-                {
-                    byte[] buffer = new byte[SocketConfiguration.BufferSize];
-                    int bytesRead;
-                    long totalBytesReceived = 0;
-
-                    // Receive and write file data
-                    while ((bytesRead = inputStream.Read(buffer)) > 0)
-                    {
-                        fileStream.Write(buffer, 0, bytesRead);
-                        totalBytesReceived += bytesRead;
-
-                        // Check if all bytes have been received
-                        if (totalBytesReceived >= fileSize)
-                        {
-                            break;
-                        }
-                    }
-                }
-
-                // Send acknowledgment message to the sender
-                byte[] acknowledgmentBuffer = System.Text.Encoding.ASCII.GetBytes(SocketConfiguration.AcknowledgmentMessage);
-                //outputStream.Write(acknowledgmentBuffer);
-                outputStream.Write(acknowledgmentBuffer, 0, acknowledgmentBuffer.Length);
-                outputStream.Flush();
+                _logger.LogError($"Error getValidUriPath: The file does not exist");
             }
         }
-        catch (IOException e)
-        {
-            // "Error receiving file: " + e.Message
-        }
-    }*/
 
-    private string readStringFromStream(Stream inputStream)
-    {
-        using (StreamReader reader = new StreamReader(inputStream))
-        {
-            return reader.ReadLine();
-        }
+        return fileUri;
     }
 
-    private long readLongFromStream(Stream inputStream)
+    private bool isValidUri(string uriString)
     {
-        byte[] longBytes = new byte[8];
-        inputStream.Read(longBytes, 0, longBytes.Length);
-        return BitConverter.ToInt64(longBytes, 0);
-    }
+        const string uriPattern = @"^(?i)(?:[a-z][a-z\d+.-]*:)(?:\\/\\/)(?:[^:@]+(?::[^:@]+)?@)?(?:(?:[a-z\d\u00A1-\uFFFF.-]+(?:\.[a-z\d\u00A1-\uFFFF.-]+)*)|\[(?:(?:IPv6:(?:[\da-fA-F]{1,4}(?::[\da-fA-F]{1,4}){7})|IPv6:(?:(?:[\da-fA-F]{1,4}(?::[\da-fA-F]{1,4}){5}):(?:[\da-fA-F]{1,4}(?::[\da-fA-F]{1,4}){1,2}))|(?:(?:[a-z\d\u00A1-\uFFFF.-]+\.)*[a-z\d\u00A1-\uFFFF.-]+)?))\])(?::\d{2,5})?(?:\/[^\s]*)?$";
 
-    private void writeStringToStream(string value, Stream outputStream)
-    {
-        using (StreamWriter writer = new StreamWriter(outputStream))
-        {
-            writer.WriteLine(value);
-        }
-    }
-
-    private void writeLongToStream(long value, Stream outputStream)
-    {
-        byte[] longBytes = BitConverter.GetBytes(value);
-        outputStream.Write(longBytes, 0, longBytes.Length);
-        outputStream.Flush();
+        return Regex.IsMatch(uriString, uriPattern);
     }
 }

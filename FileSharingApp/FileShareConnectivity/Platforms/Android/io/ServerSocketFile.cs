@@ -1,12 +1,13 @@
 using Android.Content;
 using Java.Net;
+using Microsoft.Extensions.Logging;
 using IOException = Java.IO.IOException;
 
 namespace FileShareConnectivity.Platforms.Android.IO;
 
-internal class ServerSocketFile : IDisposable
+internal class ServerSocketFile : BaseFileSocket
 {
-    private SendReceiveStreamsFile _sendReceiveStreams;
+    private ILogger<ServerSocketFile> _logger = MauiApplication.Current.Services.GetService<ILogger<ServerSocketFile>>();
     private ServerSocket _serverSocket;
     private Socket _clientSocket;
 
@@ -14,10 +15,12 @@ internal class ServerSocketFile : IDisposable
     {
         try
         {
+            _logger.LogInformation($"Create a ServerSocket and listen on a specific port {SocketConfiguration.SocketPort}");
             _serverSocket = new ServerSocket(SocketConfiguration.SocketPort);
 
             // Accept incoming connections (reference of the client socket)
             _clientSocket = _serverSocket.Accept();
+            _logger.LogInformation($"ServerSocketFile Accept incoming connections (reference of the client socket)");
 
             // Create SendReceiveStreams to send/receive data
             _sendReceiveStreams = new SendReceiveStreamsFile(_clientSocket);
@@ -29,11 +32,11 @@ internal class ServerSocketFile : IDisposable
         }
         catch (IOException e)
         {
-            // $"Failed to accept client connection: {e.Message}"
+            _logger.LogError($"Failed to accept client connection: {e.Message}");
         }
     }
 
-    public void SendFile(string filePath)
+    public override void SendFile(string filePath)
     {
         if (_sendReceiveStreams != null)
         {
@@ -41,37 +44,39 @@ internal class ServerSocketFile : IDisposable
         }
     }
 
-    public void ReceiveFileToSaveInDifferentApp(Context context)
+    public override void ReceiveFileToSaveInDifferentApp()
     {
         if (_sendReceiveStreams != null)
         {
-            _sendReceiveStreams.ReceiveFile(context);//ReceiveFileToSaveInDifferentApp(context);
+            _sendReceiveStreams.ReceiveFile();//ReceiveFileToSaveInDifferentApp();
         }
     }
 
-    public void Close()
+    public override void Close()
     {
         try
         {
             if (_clientSocket != null)
             {
+                _logger.LogInformation($"ServerSocketFile closing _clientSocket. Port: {SocketConfiguration.SocketPort}");
                 _clientSocket.Close();
                 _clientSocket = null;
             }
 
             if (_serverSocket != null)
             {
+                _logger.LogInformation($"ServerSocketFile closing _serverSocket. Port: {SocketConfiguration.SocketPort}");
                 _serverSocket.Close();
                 _serverSocket = null;
             }
         }
         catch (IOException e)
         {
-            // "Failed to close sockets: " + e.Message
+            _logger.LogError("Failed to close sockets: " + e.Message);
         }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         Close();
     }
