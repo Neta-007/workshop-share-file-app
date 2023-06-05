@@ -1,6 +1,9 @@
 ﻿
 namespace FileShareConnectivity.Exceptions;
 
+/*
+ * TODO: Change this
+ */
 public class MyException : Exception
 {
     public string Title { get; set; }

@@ -3,10 +3,13 @@ using FileShareConnectivity.Platforms.Android.IO;
 using FileShareConnectivity.Interfaces;
 using Microsoft.Extensions.Logging;
 using Java.Net;
-using Javax.Net.Ssl;
 
 namespace FileShareConnectivity.Platforms;
-
+/*
+ * TODO: For now, the current logic is that the device holding the file path to send is the one responsible for sending it, regardless of who initiated the connection. 
+ *       The reason for implementing it this way is to enable both devices to send and receive files. 
+ *       However, there is a need to close this process in a more hermetic manner.
+ */
 internal class FileTransferService : IFileTransferService
 {
     private ILogger<FileTransferService> _logger = MauiApplication.Current.Services.GetService<ILogger<FileTransferService>>();
@@ -41,7 +44,7 @@ internal class FileTransferService : IFileTransferService
 
         if (socketCreationAction == null)
         {
-            _logger.LogDebug($"Invalid socket creation action.");
+            _logger.LogError($"Invalid socket creation action. Exit initiateFileTransfer operation");
             return;
         }
 
@@ -51,13 +54,14 @@ internal class FileTransferService : IFileTransferService
 
             try
             {
-                _logger.LogDebug($"Create a socket and perform file transfer. filePath: {filePath}");
+                _logger.LogDebug($"Creating a socket and perform file transfer. filePath: {filePath}");
                 socket = socketCreationAction();
 
                 if (socket != null)
                 {
                     if (filePath != null)
                     {
+                        _logger.LogDebug($"InitiateFileTransfer. Sending file to {_networkService._connectedPeers.Count} peers");
                         foreach (WifiP2pDevice device in _networkService._connectedPeers)
                         {
                             _logger.LogDebug($"InitiateFileTransfer. Sending file to: {device}");
@@ -66,8 +70,12 @@ internal class FileTransferService : IFileTransferService
                     }
                     else
                     {
-                        socket.ReceiveFileToSaveInDifferentApp();
+                        socket.ReceiveFile();
                     }
+                }
+                else
+                {
+                    _logger.LogError($"Error creating socket in file transfer. socket is null");
                 }
             }
             catch (Exception e)
@@ -76,7 +84,7 @@ internal class FileTransferService : IFileTransferService
             }
             finally
             {
-                _logger.LogDebug($"Finally block, dispose socket");
+                _logger.LogDebug($"Finally block in file transfer, dispose socket");
                 socket?.Dispose();
                 if (isServerSocket)
                 {
@@ -123,90 +131,4 @@ internal class FileTransferService : IFileTransferService
             return _clientSocket;
         }, false);
     }
-
-    /*private void startServerSocket(string filePath)
-    {
-        _logger.LogDebug($"Create a ServerSocket and listen on a specific port {SocketConfiguration.SocketPort}. filePath: {filePath}");
-
-        if (_serverSocket == null)
-        {
-            _logger.LogDebug($"startServerSocket. Create new ServerSocketFile");
-            _serverSocket = new ServerSocketFile();
-        }
-
-        Task.Run(() =>
-        {
-            try
-            {
-                _logger.LogDebug($"In Task.Run- startServerSocket. Start _serverSocket");
-                _serverSocket.Start();
-
-                if (filePath != null)
-                {
-                    foreach (WifiP2pDevice device in _networkService._connectedPeers)
-                    {
-                        _logger.LogDebug($"StartFileTransfer. sending file to: {device}");
-                        _serverSocket.SendFile(filePath);
-                    }
-                }
-                else
-                {
-                    _serverSocket.ReceiveFileToSaveInDifferentApp();
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"In Task.Run- startServerSocket. Error: {e}");
-            }
-            finally
-            {
-                _logger.LogDebug($"In Task.Run- startServerSocket. finally block, dispose serverSocket");
-                _serverSocket?.Dispose();
-                _serverSocket = null;
-            }
-        });
-    }
-
-    private void connectToServerSocket(InetAddress serverAddress, string filePath)
-    {
-        _logger.LogDebug($"connectToServerSocket. filePath: {filePath}, serverAddress: {serverAddress}");
-        // If the device is a client
-        if (_clientSocket == null)
-        {
-            _logger.LogDebug($"connectToServerSocket. Create new ClientSocketFile");
-            _clientSocket = new ClientSocketFile();
-        }
-
-        Task.Run(() =>
-        {
-            try
-            {
-                _logger.LogDebug($"In Task.Run- connectToServerSocket. Connect to host {serverAddress.HostAddress}");
-                _clientSocket.Connect(serverAddress.HostAddress);
-
-                if (filePath != null)
-                {
-                    foreach (WifiP2pDevice device in _networkService._connectedPeers)
-                    {
-                        _logger.LogDebug($"StartFileTransfer. sending file to: {device}");
-                        _clientSocket.SendFile(filePath);
-                    }
-                }
-                else
-                {
-                    _clientSocket.ReceiveFileToSaveInDifferentApp();
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"In Task.Run- connectToServerSocket. Error {e}");
-            }
-            finally
-            {
-                _logger.LogDebug($"In Task.Run- connectToServerSocket. finally block, dispose clientSocket");
-                _clientSocket?.Dispose();
-                _clientSocket = null;
-            }
-        });
-    }*/
 }

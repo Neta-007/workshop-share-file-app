@@ -13,6 +13,7 @@ internal static class SocketConfiguration
     public static int DrillNewPort()
     {
         //TODO: implement a drill new port mechanism
+        // Before impl and use this function- create a flow that the server and clint can be aware somehow to which port to listen.. they need to use the same port! 
 
         return SocketPort;
     }

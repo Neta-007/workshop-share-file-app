@@ -10,6 +10,9 @@ using Microsoft.Extensions.Logging;
 
 namespace FileSharingApp.ViewModel;
 
+/*
+ * TODO: Maybe show some indication in the view for the `FilePath`?
+ */
 public partial class ShareFileViewModel : ObservableObject
 {
     private FileSharingWrapper _fileSharingWrapper;
@@ -50,8 +53,8 @@ public partial class ShareFileViewModel : ObservableObject
         }
         catch(MyException ex)
         {
-            App.AlertService.ShowAlert(ex.Title, ex.Message);
             _logger.LogError($"DeviceFrameClicked {ex}. deviceObject is: {deviceObject}.");
+            App.AlertService.ShowAlert(ex.Title, ex.Message);
         }
     }
 
@@ -70,8 +73,8 @@ public partial class ShareFileViewModel : ObservableObject
         catch (MyException ex)
         {
             resetView();
-            App.AlertService.ShowAlert(ex.Title, ex.Message);
             _logger.LogError($"FindDevices {ex}.");
+            App.AlertService.ShowAlert(ex.Title, ex.Message);
         } 
     }
 
@@ -96,12 +99,15 @@ public partial class ShareFileViewModel : ObservableObject
             _logger.LogError($"PickAndShow The user canceled or something went wrong. {ex}.");
         }
     }
-
-    /*
-     * The device list update not working if we are come from intent :(
-     */
+    
     private void NetworkService_DevicesFound(object sender, DevicesEventArgs e)
     {
+        /*
+         * TODO: The device list update is not working if we come from an intent. :(
+         * This is a bug in .NET, resolved in .NET 8. 
+         * More details about it here: https://github.com/dotnet/maui/issues/12219"
+         */
+
         Task.Run(() =>
         {
             // Application.Current.Dispatcher.Dispatch
@@ -134,6 +140,8 @@ public partial class ShareFileViewModel : ObservableObject
 
     private void refreshScanIndicators(bool isScanStarted)
     {
+        // TODO: Validate that it's working on the Galaxy device. I think it's still not refreshing.
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
             IsScanningForDevices = isScanStarted;
@@ -143,6 +151,8 @@ public partial class ShareFileViewModel : ObservableObject
 
     private void resetView()
     {
+        // TODO: Validate that it's working on the Galaxy device. I think it's still not refreshing.
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
             NearbyDevices.Clear();
@@ -171,7 +181,6 @@ public partial class ShareFileViewModel : ObservableObject
     {
         if(e.IsSuccessConnection && e.ConnectionInfo != null)
         {
-            // mark the device frame with green color?...
             // FilePath != null => for the sender, FilePath = file picker/share activity
             _logger.LogDebug($"NetworkService_ConnectionResult is finish {e.ConnectionInfo}. File path: {FilePath}");
             _fileSharingWrapper.FileTransferService.StartFileTransfer(e.ConnectionInfo, FilePath);

@@ -5,7 +5,6 @@
 ## Android
 
 Add the following permissions to your `AndroidManifest.xml`. 
-For Marshmallow and above, please follow [Requesting Runtime Permissions in Android Marshmallow](https://devblogs.microsoft.com/xamarin/requesting-runtime-permissions-in-android-marshmallow/) and don't forget to prompt the user for the location permission.
 
 ```xml
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -13,8 +12,12 @@ For Marshmallow and above, please follow [Requesting Runtime Permissions in Andr
 <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
 <!-- If any feature in your app relies on precise location information, don't include the "maxSdkVersion" attribute. -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 ```
 
 If your app targets Android 13 (API level 33) or higher, you must declare the NEARBY_WIFI_DEVICES permission.

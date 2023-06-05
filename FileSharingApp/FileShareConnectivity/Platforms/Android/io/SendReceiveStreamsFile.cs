@@ -1,132 +1,100 @@
 using Java.Net;
-using IOException = Java.IO.IOException;
-using File = Java.IO.File;
-using AndroidUri = global::Android.Net.Uri;
 using Android.Content;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
-using Android.Provider;
-using Android.Webkit;
-using Android.Widget;
+using IOException = Java.IO.IOException;
+using File = Java.IO.File;
+using AndroidUri = global::Android.Net.Uri;
 
 namespace FileShareConnectivity.Platforms.Android.IO;
 
 internal class SendReceiveStreamsFile
 {
     private ILogger<SendReceiveStreamsFile> _logger = MauiApplication.Current.Services.GetService<ILogger<SendReceiveStreamsFile>>();
-    Context _context = global::Android.App.Application.Context;
-    private Socket _socket;     // Use the socket input and output streams to communicate between client and server
+    private Context _context = global::Android.App.Application.Context;
+    private Socket _socket;
 
     public SendReceiveStreamsFile(Socket socket)
     {
         _socket = socket;
+        _logger.LogInformation($"Create SendReceiveStreams to send/receive data. Use the socket input and output streams to communicate between client and server");
     }
 
     public void SendFile(string filePath)
     {
-        _logger.LogDebug($"SendReceiveStreamsFile SendFile {filePath}");
+        _logger.LogDebug($"Start sending file {filePath}");
 
-        var file = new Java.IO.File(filePath);
+        Stream inputStream = null;
+        Stream outputStream = null;
 
-        if (file.Exists())
+        try
         {
-            try
-            {
-                var stream = _socket.OutputStream;
-                var cr = _context.ContentResolver;
-                Stream inputStream = null;
+            AndroidUri fileUri = getValidUriPath(filePath);
+            ContentResolver cr = _context.ContentResolver;
 
-                try
-                {
-                    AndroidUri fileUri = getValidUriPath(filePath);
-                    _logger.LogDebug($"SendFile AndroidUri fileUri: {fileUri}");
-                    inputStream = cr.OpenInputStream(fileUri);
-                    CopyFile(inputStream, stream);
-                }
-                catch (Java.IO.FileNotFoundException e)
-                {
-                    _logger.LogError($"Error sending file, FileNotFoundException: {e.Message}");
-                }
-            }
-            catch (IOException e)
-            {
-                _logger.LogError($"Error sending file: {e.Message}");
-            }
+            outputStream = _socket.OutputStream;
+            inputStream = cr.OpenInputStream(fileUri);
+            copyFileStream(inputStream, outputStream);
         }
-        else
+        catch (IOException e)
         {
-            _logger.LogError($"Error sending file: File not exist");
+            _logger.LogError($"Error sending file: {e.Message}");
+        }
+        finally
+        {
+            inputStream?.Dispose();
+            outputStream?.Dispose();
         }
     }
 
     public void ReceiveFile()
     {
+        _logger.LogDebug($"Start receiving file");
+
         string fileReceivePath = null;
+        Stream inputStream = null;
+        Stream outputStream = null;
 
         try
         {
-            _logger.LogDebug($"SendReceiveStreamsFile ReceiveFile");
-            //File mediaStorageDir = _context.GetExternalFilesDir(null);
-            var externalStorageDir = _context.GetExternalFilesDir(null).AbsolutePath;
-            //var externalStorageDir = global::Android.OS.Environment.GetExternalStoragePublicDirectory(global::Android.OS.Environment.DirectoryPictures);
+            File file = handleReceivedFilePathOperation();
 
-            //var externalStorageDir = global::Android.OS.Environment.ExternalStorageDirectory;
-            string packageName = AppInfo.Current.PackageName;
-            _logger.LogDebug($"SendReceiveStreamsFile mediaStorageDir {externalStorageDir}");
-            _logger.LogDebug($"SendReceiveStreamsFile ReceiveFile {packageName}");
-
-            File fileDir = new File(externalStorageDir, packageName);
-            _logger.LogDebug($"SendReceiveStreamsFile fileDir {fileDir}");
-
-            _logger.LogDebug($"SendReceiveStreamsFile !fileDir.Exists(): {!fileDir.Exists()}");
-            if (!fileDir.Exists())
-            {
-                fileDir.Mkdirs();
-            }
-            _logger.LogDebug($"SendReceiveStreamsFile after !fileDir.Exists(): {!fileDir.Exists()}");
-
-            long timestamp = DateTime.Now.Ticks;
-            string filePath = System.IO.Path.Combine(fileDir.Path, $"wifip2pshared-{timestamp}");   // TODO: add later the file type
-            _logger.LogDebug($"SendReceiveStreamsFile filePath {filePath}");
-
-            File file = new File(filePath);
-            _logger.LogDebug($"SendReceiveStreamsFile !file.Exists(): {!file.Exists()}");
-            if (!file.Exists())
-            {
-                file.CreateNewFile();
-            }
-            _logger.LogDebug($"SendReceiveStreamsFile after !file.Exists(): {!file.Exists()}");
-            _logger.LogDebug($"SendReceiveStreamsFile file {file}");
-
-            Stream inputStream = _socket.InputStream;
-            Stream outputStream = new FileStream(file.Path, FileMode.OpenOrCreate);
-
-            CopyFile(inputStream, outputStream);
-
+            inputStream = _socket.InputStream;
+            outputStream = new FileStream(file.Path, FileMode.OpenOrCreate);
+            copyFileStream(inputStream, outputStream);
             fileReceivePath = file.AbsolutePath;
         }
         catch (IOException e)
         {
             _logger.LogError($"Error receiving file: {e.Message}");
         }
+        finally 
+        {
+            outputStream?.Close();
+            inputStream?.Close();
+        }
 
-        _logger.LogDebug($"SendReceiveStreamsFile ReceiveFile => fileReceivePath: {fileReceivePath}");
-
-        /* TODO: not working
         if (fileReceivePath != null)
         {
-            var intent = new Intent();
-            intent.SetAction(Intent.ActionView);
-            intent.SetDataAndType(global::Android.Net.Uri.Parse("file://" + fileReceivePath), "image/*");
-            _context.StartActivity(intent);
-        }*/
+            _logger.LogDebug($"ReceiveFile finished => new file absolute path: {fileReceivePath}");
+            openReceivedFileInDifferentApp(fileReceivePath);
+        }
     }
 
-    public bool CopyFile(Stream inputStream, Stream outputStream)
+    private void openReceivedFileInDifferentApp(string newFileAbsolutePath)
     {
-        _logger.LogDebug($"SendReceiveStreamsFile CopyFile");
-        var buf = new byte[1024];
-        bool res = true;
+        /* TODO: not working
+        var intent = new Intent();
+        intent.SetAction(Intent.ActionView);
+        intent.SetDataAndType(global::Android.Net.Uri.Parse("file://" + newFileAbsolutePath), "image/*");
+        _context.StartActivity(intent);
+        */
+    }
+
+    private void copyFileStream(Stream inputStream, Stream outputStream)
+    {
+        _logger.LogDebug($"Start copying file (input <--> output stream)");
+        var buf = new byte[SocketConfiguration.BufferSize];
 
         try
         {
@@ -136,17 +104,53 @@ internal class SendReceiveStreamsFile
             {
                 outputStream.Write(buf, 0, n);
             }
-
-            outputStream.Close();
-            inputStream.Close();
         }
         catch (Exception e)
         {
             _logger.LogError($"Error copying file: {e.Message}");
-            res = false;
+        }
+    }
+
+    private File handleReceivedFilePathOperation()
+    {
+        string fileDirPath = getReceivedFileDirectoriesPath();
+        string fileName = generateReceivedFileName();
+        string fileFullPath = Path.Combine(fileDirPath, fileName);
+        File file = new File(fileFullPath);
+
+        _logger.LogDebug($"The received file going to be saved under: {fileFullPath}");
+        if (!file.Exists())
+        {
+            file.CreateNewFile();
         }
 
-        return res;
+        return file;
+    }
+
+    private string getReceivedFileDirectoriesPath()
+    {
+        // TODO: change the process to save the file under the cache dir (instead of externalStorageDir)
+        //       because it meant to be a temp file and saving the file should be under the appropriate location according to his MINE type
+        var externalStorageDir = _context.GetExternalFilesDir(null).AbsolutePath;
+        string packageName = AppInfo.Current.PackageName;
+        File fileDir = new File(externalStorageDir, packageName);
+
+        _logger.LogDebug($"Going to save incoming file under directories path: {fileDir}");
+        if (!fileDir.Exists())
+        {
+            _logger.LogDebug($"The path: {fileDir} doesn't exist in the phone storage. Going to create the desired directories");
+            fileDir.Mkdirs();
+        }
+
+        return fileDir.Path;
+    }
+
+    private string generateReceivedFileName()
+    {
+        long timestamp = DateTime.Now.Ticks;
+        string fileName = $"wifip2pshared-{timestamp}";   // TODO: add later the file type ? => $"wifip2pshared-{timestamp}.jpg" ...
+
+        return fileName;
     }
 
     private AndroidUri getValidUriPath(string filePath)
@@ -161,30 +165,32 @@ internal class SendReceiveStreamsFile
             }
             catch (Exception e)
             {
-                _logger.LogError($"Error getValidUriPath: URI parsing failed. {e.Message}");
+                _logger.LogError($"Error when trying to get valid URI path: URI parsing failed. {e.Message}");
             }
         }
         else
         {
-            _logger.LogInformation($"getValidUriPath: The filePath is not a valid URI, attempt to parse it as a file path");
-            Java.IO.File file = new Java.IO.File(filePath);
+            _logger.LogInformation($"The filePath is not a valid URI, attempt to parse it as a file path");
+            File file = new File(filePath);
 
             if (file.Exists())
             {
                 try
                 {
-                    fileUri = AndroidUri.FromFile(new Java.IO.File(filePath));
+                    fileUri = AndroidUri.FromFile(file);
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError($"Error getValidUriPath: File path parsing failed. {e.Message}");
+                    _logger.LogError($"Error when trying to get valid URI path: File path parsing failed. {e.Message}");
                 }
             }
             else
             {
-                _logger.LogError($"Error getValidUriPath: The file does not exist");
+                _logger.LogError($"Error when trying to get a valid URI path from filePath- {filePath}. The file does not exist");
             }
         }
+
+        _logger.LogDebug($"AndroidUri, fileUri: {fileUri} from filePath: {filePath}");
 
         return fileUri;
     }

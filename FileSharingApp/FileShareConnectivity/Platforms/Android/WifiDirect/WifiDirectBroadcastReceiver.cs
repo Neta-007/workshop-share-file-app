@@ -61,27 +61,25 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
 
     private void handleWifiP2pStateChangedAction(global::Android.Content.Intent intent)
     {
+        // TODO: impl the method
         OnStateChanged(new EventArgs());
     }
 
     private void handleWifiP2pPeersChangedAction()
     {
-        // Broadcast when you call discoverPeers().
-        // You will usually call requestPeers() to get an updated list of peers if you handle this intent in your application.
-        // Call WifiP2pManager.requestPeers() to get a list of current peers
+        // Broadcast when we call DiscoverPeers().
+        // Call WifiP2pManager.RequestPeers() to get an updated list of current peers which is an asynchronous call, thet notifies with a callback
 
-        // request available peers from the wifi p2p manager. This is an
-        // asynchronous call and the calling activity is notified with a
-        // callback on PeerListListener.onPeersAvailable()
-
-        // Request a list of available peers from the WifiP2pManager and raise the DevicesDiscovered event with the results.
         _manager.RequestPeers(_channel, _peerListListener);
     }
 
     private void handleWifiP2pConnectionChangedAction(global::Android.Content.Intent intent)
     {
-        //bool isNetworkConntected = isP2PNetworkConnectedToDevice();
+        // TODO: The code is probably not working for SDK 33. Android is not providing a sufficient solution to the deprecated call. :(
+
+        // bool isNetworkConntected = isP2PNetworkConnectedToDevice();
         var networkInfo = (NetworkInfo)intent.GetParcelableExtra(WifiP2pManager.ExtraNetworkInfo);
+
         if (networkInfo.IsConnected)
         {
             // we are connected with the other device, request connection info to find group owner IP
@@ -89,13 +87,14 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         }
         else
         {
-            // TODO: disconnected ?? => Can't connet?
+            // TODO: disconnected ?? => Can't connect?...
             OnConnectionResult(new ConnectionResultEventArgs(false, null));
         }
     }
 
     private void handleWifiP2pThisDeviceChangedAction(global::Android.Content.Intent intent)
     {
+        // TODO: impl the method
         OnThisDeviceChanged(new EventArgs());
     }
 
@@ -105,6 +104,7 @@ internal class WifiDirectBroadcastReceiver : BroadcastReceiver
         // If the application tries to re-initiate discovery during this time, it can fail.
         // Broadcast intent action indicating that peer discovery has either started or stopped.
         // https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager#WIFI_P2P_DISCOVERY_CHANGED_ACTION
+
         int discoveryState = intent.GetIntExtra(WifiP2pManager.ExtraDiscoveryState, -1);
         ScanState newState = ScanState.Started;
 

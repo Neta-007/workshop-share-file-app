@@ -1,4 +1,3 @@
-using Android.Content;
 using Java.Net;
 using Microsoft.Extensions.Logging;
 using IOException = Java.IO.IOException;
@@ -7,9 +6,12 @@ namespace FileShareConnectivity.Platforms.Android.IO;
 
 internal class ServerSocketFile : BaseFileSocket
 {
-    private ILogger<ServerSocketFile> _logger = MauiApplication.Current.Services.GetService<ILogger<ServerSocketFile>>();
     private ServerSocket _serverSocket;
-    private Socket _clientSocket;
+
+    public ServerSocketFile() : base()
+    {
+        _logger = MauiApplication.Current.Services.GetService<ILogger<ServerSocketFile>>();
+    }
 
     public void Start()
     {
@@ -19,14 +21,14 @@ internal class ServerSocketFile : BaseFileSocket
             _serverSocket = new ServerSocket(SocketConfiguration.SocketPort);
 
             // Accept incoming connections (reference of the client socket)
-            _clientSocket = _serverSocket.Accept();
+            _socket = _serverSocket.Accept();
             _logger.LogInformation($"ServerSocketFile Accept incoming connections (reference of the client socket)");
 
             // Create SendReceiveStreams to send/receive data
-            _sendReceiveStreams = new SendReceiveStreamsFile(_clientSocket);
+            _sendReceiveStreams = new SendReceiveStreamsFile(_socket);
 
             // Clean up
-            // _clientSocket.Close(); // Commented out to keep the server socket open for accepting new connections
+            // _socket.Close(); // Commented out to keep the server socket open for accepting new connections
             // _serverSocket.Close(); // Commented out to keep the server socket open for accepting new connections
 
         }
@@ -36,32 +38,11 @@ internal class ServerSocketFile : BaseFileSocket
         }
     }
 
-    public override void SendFile(string filePath)
-    {
-        if (_sendReceiveStreams != null)
-        {
-            _sendReceiveStreams.SendFile(filePath);
-        }
-    }
-
-    public override void ReceiveFileToSaveInDifferentApp()
-    {
-        if (_sendReceiveStreams != null)
-        {
-            _sendReceiveStreams.ReceiveFile();//ReceiveFileToSaveInDifferentApp();
-        }
-    }
-
     public override void Close()
     {
         try
         {
-            if (_clientSocket != null)
-            {
-                _logger.LogInformation($"ServerSocketFile closing _clientSocket. Port: {SocketConfiguration.SocketPort}");
-                _clientSocket.Close();
-                _clientSocket = null;
-            }
+            base.Close();
 
             if (_serverSocket != null)
             {

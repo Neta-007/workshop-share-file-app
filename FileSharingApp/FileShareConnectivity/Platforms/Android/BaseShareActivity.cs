@@ -6,7 +6,7 @@ namespace FileShareConnectivity.Platforms.Android;
 
 public class BaseShareActivity : MauiAppCompatActivity
 {
-    private ILogger<BaseShareActivity> _logger = MauiApplication.Current.Services.GetService<ILogger<BaseShareActivity>>();
+    //private ILogger<BaseShareActivity> _logger = MauiApplication.Current.Services.GetService<ILogger<BaseShareActivity>>();
     private NetworkService _networkService;
 
     protected override void OnCreate(Bundle savedInstanceState)

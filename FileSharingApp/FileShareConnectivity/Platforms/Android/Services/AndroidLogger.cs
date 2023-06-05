@@ -19,7 +19,7 @@ internal class AndroidLogger : ILogger
     {
         //string dateTime = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss.fff");
         //string logMessage = $"{dateTime} [{_categoryName}] {formatter(state, exception)}";
-        string logMessage = $"[{_categoryName}] {formatter(state, exception)}";
+        string logMessage = formatter(state, exception);
         Java.Lang.Throwable? throwable = exception is not null ? Java.Lang.Throwable.FromException(exception) : null;
 
         switch (logLevel)
